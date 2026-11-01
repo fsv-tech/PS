@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAW 14 -- gadget scanner</title>
+<style>
+  html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
+               font:15px/1.5 "Segoe UI", system-ui, sans-serif;
+               -webkit-text-size-adjust:100%; }
+  #wrap { padding:14px 18px 60px; max-width:100%; overflow-x:hidden;
+          box-sizing:border-box; }
+  h1 { font-size:20px; margin:0 0 6px; letter-spacing:.06em; }
+  h4 { font-size:11px; letter-spacing:.16em; color:#5c6672; font-weight:600;
+       margin:22px 0 6px; }
+  #state { font-size:19px; font-weight:700; margin:8px 0; }
+  #det, #prog { font:13px/1.6 Consolas, monospace; color:#8b95a3;
+                word-break:break-all; }
+  .ok { color:#7fd0a0; } .bad { color:#d08a7f; } .warn { color:#d8c07f; }
+  table { border-collapse:collapse; width:100%; table-layout:fixed;
+          font:13px/1.5 Consolas, monospace; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #1b232d;
+           vertical-align:top; word-wrap:break-word; }
+  th { color:#8b95a3; font-weight:600; }
+  th.c1, td.c1 { width:34%; } th.c2, td.c2 { width:18%; }
+  th.c3, td.c3 { width:30%; } th.c4, td.c4 { width:18%; }
+  td.k { color:#c8ced8; word-break:break-all; } td.d { color:#5c6672; }
+  textarea { width:100%; height:190px; margin-top:12px; background:#0e1116;
+             color:#c8ced8; border:1px solid #1e2732;
+             font:12px/1.5 Consolas, monospace; padding:8px;
+             box-sizing:border-box; }
+  .note { font-size:13px; color:#5c6672; margin:14px 0 0; max-width:70em; }
+  a { color:#d8c07f; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>GADGET SCANNER</h1>
+  <div id="state">waiting</div>
+  <div id="det">-</div>
+  <div id="prog"></div>
+
+  <table id="tbl">
+    <thead><tr><th class="c1">key</th><th class="c2">signature</th>
+    <th class="c3">rva</th><th class="c4">hits</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h4>TABLE BLOCK</h4>
+  <textarea id="out" spellcheck="false" readonly></textarea>
+
+  <p class="note">Finds the 15 ROP gadgets by byte signature in the live WebKit
+     module, so their RVAs stop depending on anyone's table. Read-only: it calls
+     <code>readBytes</code> and nothing else. It is <b>not</b> an exploit and
+     contains no bug — it needs an adapter that already has userland R/W, and it
+     cannot supply one.</p>
+  <p class="note"><a href="index.html">host</a> &middot;
+     <a href="caps.html">capabilities</a> &middot;
+     <a href="measure.html">checklist</a></p>
+</div>
+
+<script>
+/* SCAN-CORE-BEGIN
+   DOM-free so tools/test.mjs can run it against a synthetic module image.
+   Strict ES5. No writes anywhere.
+*/
+var SIGS = [
+  ["wk_POP_RDI_RET",              "5f c3"],
+  ["wk_POP_RSI_RET",              "5e c3"],
+  ["wk_POP_RDX_RET",              "5a c3"],
+  ["wk_POP_RCX_RET",              "59 c3"],
+  ["wk_POP_RAX_RET",              "58 c3"],
+  ["wk_POP_R8_RET",               "41 58 c3"],
+  ["wk_POP_R9_RET",               "41 59 c3"],
+  ["wk_LEAVE_RET",                "c9 c3"],
+  ["wk_MOV_QWORD_PTR_RDI_RAX_RET","48 89 07 c3"],
+  ["wk_MOV_RDI_RSI_30_CALL",      "48 8b 7e 30"],
+  ["wk_POP_RAX_MOV_RAX_JMP_18",   "58 48 8b 07"],
+  ["wk_PUSH_RBP_MOV_RBP_RSP_10",  "55 48 89 e5"],
+  ["wk_MOV_RDI_RAX_8_CALL_20",    "48 8b 78 08"],
+  ["wk_MOV_RDX_RAX_18_CALL_10",   "48 8b 50 38"],
+  ["wk_PUSH_RDX_POP_RSP_RET",     "52 5c c3"]
+];
+
+// Present in the table but not findable by signature: they are struct offsets,
+// import slots or kernel addresses. Listed so the report is honest about what
+// is still missing instead of quietly emitting a short table.
+var NOT_SCANNABLE = [
+  "fw_status", "wk_expm1_builtin", "wk_JSFunction_m_function", "pivot_view_sp",
+  "wk_ArrayBuffer_m_impl", "wk_ArrayBuffer_m_contents_m_data",
+  "wk___imp___error", "k__error", "k_scan_stage1", "k_scan_stage2",
+  "k_evf_cv", "k_sysent_661", "k_jmp_rsi"
+];
+
+function hexToBytes(s) {
+  var parts = s.split(" "), out = [], i;
+  for (i = 0; i < parts.length; i++) out.push(parseInt(parts[i], 16));
+  return out;
+}
+
+function toU8(x) {
+  if (!x) return null;
+  if (x.length !== undefined) return x;
+  return null;
+}
+
+// Index of `needle` in `hay` starting at `from`, comparing numerically so it
+// works on Uint8Array and on a plain array alike.
+function indexOfBytes(hay, needle, from) {
+  var n = hay.length, m = needle.length, i, j, hit;
+  if (m === 0 || n < m) return -1;
+  for (i = from; i <= n - m; i++) {
+    if (hay[i] !== needle[0]) continue;
+    hit = true;
+    for (j = 1; j < m; j++) {
+      if (hay[i + j] !== needle[j]) { hit = false; break; }
+    }
+    if (hit) return i;
+  }
+  return -1;
+}
+
+/**
+ * rw = { base: number|fn, readBytes(addr, len) -> Uint8Array }
+ * opts = { maxBytes, chunk, onChunk(done, total) }
+ */
+function scanModule(rw, opts) {
+  opts = opts || {};
+  var base = typeof rw.base === "function" ? rw.base() : rw.base;
+  var maxBytes = opts.maxBytes || 0x4400000;   // 68 MB covers the 67 MB module
+  var chunk = opts.chunk || 0x100000;          // 1 MB, comfort for the fake AB
+  var overlap = 16;
+  var sigs = [], i, s;
+  for (i = 0; i < SIGS.length; i++) {
+    sigs.push({ key: SIGS[i][0], bytes: hexToBytes(SIGS[i][1]),
+                first: null, last: -1, hits: 0 });
+  }
+
+  var addr = 0, fails = 0, scanned = 0, carry = null;
+  while (addr < maxBytes && fails < 2) {
+    var buf;
+    try {
+      buf = toU8(rw.readBytes(base + addr, chunk));
+      if (!buf || !buf.length) throw new Error("short read");
+    } catch (e) {
+      fails++;
+      carry = null;      // a gap must not stitch two non-adjacent regions
+      addr += chunk;
+      continue;
+    }
+    fails = 0;
+
+    // Stitch the previous chunk's tail so a signature on the seam is not missed.
+    var hay = buf;
+    var hayStart = addr;
+    if (carry) {
+      hay = new (buf.constructor || Array)(carry.length + buf.length);
+      for (i = 0; i < carry.length; i++) hay[i] = carry[i];
+      for (i = 0; i < buf.length; i++) hay[carry.length + i] = buf[i];
+      hayStart = addr - carry.length;
+    }
+
+    for (i = 0; i < sigs.length; i++) {
+      s = sigs[i];
+      var from = 0, at;
+      while (true) {
+        at = indexOfBytes(hay, s.bytes, from);
+        if (at < 0) break;
+        var rva = hayStart + at;
+        // Overlapping windows would otherwise count the seam hit twice.
+        if (rva > s.last) {
+          s.last = rva;
+          s.hits++;
+          if (s.first === null) s.first = rva;
+        }
+        from = at + 1;
+      }
+    }
+
+    carry = [];
+    var tailLen = Math.min(overlap, hay.length);
+    for (i = hay.length - tailLen; i < hay.length; i++) carry.push(hay[i]);
+
+    scanned += buf.length;
+    addr += buf.length;
+    if (opts.onChunk) opts.onChunk(scanned, maxBytes);
+  }
+
+  var found = [], missing = [], j;
+  for (i = 0; i < sigs.length; i++) {
+    if (sigs[i].first !== null) {
+      found.push({ key: sigs[i].key, rva: sigs[i].first, hits: sigs[i].hits });
+    } else {
+      missing.push(sigs[i].key);
+    }
+  }
+  return { base: base, scanned: scanned, found: found, missing: missing,
+           notScannable: NOT_SCANNABLE };
+}
+
+function tableText(result, fwkey) {
+  var lines = [], i, f;
+  lines.push("// " + result.found.length + " of " + SIGS.length +
+             " gadgets found by signature in the live module");
+  lines.push("// scanned " + result.scanned + " bytes from base 0x" +
+             (result.base >>> 0).toString(16));
+  if (result.missing.length) {
+    lines.push("// NOT FOUND (do not guess): " + result.missing.join(", "));
+  }
+  lines.push("// still needs a manual measurement: " +
+             result.notScannable.join(", "));
+  lines.push('PS4["' + (fwkey || "14.00") + '"] = {');
+  lines.push("  measured: false,   // flip to true only when all 28 keys are real");
+  lines.push('  fw_status: "state=SCANNED-15-OF-28",');
+  for (i = 0; i < result.found.length; i++) {
+    f = result.found[i];
+    lines.push("  " + f.key + ": 0x" + f.rva.toString(16) +
+               ",   // " + f.hits + " hit(s)");
+  }
+  lines.push("};");
+  return lines.join("\n");
+}
+/* SCAN-CORE-END */
+
+var stateEl = document.getElementById("state");
+var detEl = document.getElementById("det");
+var progEl = document.getElementById("prog");
+var outEl = document.getElementById("out");
+
+function say(t, c) { stateEl.innerHTML = t; stateEl.className = c || ""; }
+
+var rw = window.PS4RW;
+
+if (!rw || typeof rw.readBytes !== "function") {
+  say("NO PRIMITIVE -- NOTHING TO SCAN", "bad");
+  detEl.innerHTML =
+    "This page needs <code>window.PS4RW = { base: number, readBytes(addr, len) }</code>.<br>"
+    + "That adapter can only be built on top of a WebKit memory bug, and there is "
+    + "no such bug in this package -- which is why the arrays below are empty "
+    + "rather than invented.<br><br>"
+    + "If you land a primitive, set <code>PS4RW</code> before this script runs and "
+    + "the scan finds all 15 ROP gadgets by byte signature, with no offsets file.";
+  progEl.textContent = "0 / 15 gadgets measurable without an adapter";
+} else {
+  say("SCANNING", "warn");
+  var result = scanModule(rw, {
+    onChunk: function (done, total) {
+      progEl.textContent = "scanned " + (done / 1048576).toFixed(1) + " / "
+        + (total / 1048576).toFixed(0) + " MB";
+    }
+  });
+  var body = document.getElementById("tbl").getElementsByTagName("tbody")[0];
+  var i, f, tr, td;
+  var byKey = {};
+  for (i = 0; i < result.found.length; i++) byKey[result.found[i].key] = result.found[i];
+
+  for (i = 0; i < SIGS.length; i++) {
+    f = byKey[SIGS[i][0]];
+    tr = document.createElement("tr");
+    td = document.createElement("td"); td.className = "k c1"; td.innerHTML = SIGS[i][0];
+    tr.appendChild(td);
+    td = document.createElement("td"); td.className = "d c2"; td.innerHTML = SIGS[i][1];
+    tr.appendChild(td);
+    td = document.createElement("td"); td.className = "c3";
+    td.innerHTML = f ? "0x" + f.rva.toString(16) : "not found";
+    tr.appendChild(td);
+    td = document.createElement("td"); td.className = "c4";
+    td.innerHTML = f ? String(f.hits) : "-";
+    tr.appendChild(td);
+    body.appendChild(tr);
+  }
+
+  say(result.found.length === SIGS.length
+      ? "ALL 15 FOUND"
+      : result.found.length + " OF 15 FOUND",
+      result.found.length === SIGS.length ? "ok" : "warn");
+  detEl.innerHTML = "base 0x" + (result.base >>> 0).toString(16)
+    + " &middot; scanned " + result.scanned + " bytes &middot; "
+    + "13 keys still need a manual measurement (struct offsets, import slot, kernel)";
+  progEl.textContent = "";
+  outEl.value = tableText(result, "14.00");
+}
+</script>
+</body>
+</html>
