@@ -234,9 +234,13 @@ class files for no gain.
 
 ## 5. What I would do next, in this order
 
-1. Open `index.html` on the 14.00 console and screenshot the `RAW14|...` line.
-   That gives you the real UA and WebKit build, which settles the
-   "frozen engine" premise before anyone spends another hour on aliasing.
+1. Open `index.html` on the 14.00 console and screenshot the `RAW14|...` line,
+   then open `caps.html` and screenshot the `CAPS|...` line. Between them they
+   settle the "frozen engine" premise before anyone spends another hour on
+   aliasing: the SSV entry is a BigInt pooling bug, so `bigint=0` falsifies that
+   entry on this build, and `bigint=1` under a `537.x` UA proves the UA string is
+   a fixed label rather than the engine version. Both readings kill the argument
+   that 13.52 RVAs carry over — for opposite reasons.
 2. Decide the primitive, not the table. `probe/` is a good instrument and it
    is honest about what it cannot prove — but it needs the memory primitive to
    run, so it cannot be step one. The `dipsw` ioctl window and the

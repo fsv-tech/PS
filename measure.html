@@ -8,17 +8,26 @@
   html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
                font:15px/1.5 "Segoe UI", system-ui, sans-serif;
                -webkit-text-size-adjust:100%; }
-  #wrap { padding:14px 16px 50px; }
+  #wrap { padding:14px 16px 50px; max-width:100%; overflow-x:hidden;
+          box-sizing:border-box; }
   h1 { font-size:18px; margin:0 0 6px; letter-spacing:.06em; }
-  p.note { font-size:13px; color:#8b95a3; margin:0 0 12px; }
-  #head { font:12px/1.6 Consolas, monospace; color:#5c6672; margin:0 0 12px;
+  p.note { font-size:13px; color:#8b95a3; margin:0 0 12px; max-width:70em; }
+  #head { font:13px/1.6 Consolas, monospace; color:#5c6672; margin:0 0 12px;
           word-break:break-all; }
-  table { border-collapse:collapse; width:100%; font:12px/1.5 Consolas, monospace; }
+  /* table-layout:fixed + explicit widths: the 537.x engine sizes an auto table
+     to max-content, so one long "source" string pushed the state column off the
+     right edge of the TV and the whole page scrolled sideways. */
+  table { border-collapse:collapse; width:100%; table-layout:fixed;
+          font:13px/1.5 Consolas, monospace; }
   th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #1b232d;
-           vertical-align:top; }
+           vertical-align:top; word-wrap:break-word; }
   th { color:#8b95a3; font-weight:600; }
+  th.c1, td.c1 { width:37%; }
+  th.c2, td.c2 { width:48%; }
+  th.c3, td.c3 { width:15%; }
   td.k { color:#c8ced8; word-break:break-all; }
   td.src { color:#5c6672; }
+  td.st { text-align:right; }
   .no { color:#d08a7f; } .yes { color:#7fd0a0; }
   textarea { width:100%; height:170px; margin-top:14px; background:#0e1116;
              color:#c8ced8; border:1px solid #1e2732;
@@ -35,7 +44,7 @@
      block into <code>fwtable.js</code> under <code>PS4["14.00"]</code> and set
      <code>measured: true</code>. The gate re-checks it on load and still refuses
      anything it cannot verify.</p>
-  <table id="tbl"><thead><tr><th>key</th><th>source</th><th>state</th></tr></thead><tbody></tbody></table>
+  <table id="tbl"><thead><tr><th class="c1">key</th><th class="c2">source</th><th class="c3">state</th></tr></thead><tbody></tbody></table>
   <textarea id="out" spellcheck="false" readonly></textarea>
   <p class="note"><a href="index.html">back to the host</a></p>
 </div>
@@ -211,11 +220,12 @@ for (i = 0; i < keys.length; i++) {
   k = keys[i];
   have = entry[k] !== undefined && entry[k] !== null && entry[k] !== "";
   tr = document.createElement("tr");
-  td = document.createElement("td"); td.className = "k"; td.innerHTML = k;
+  td = document.createElement("td"); td.className = "k c1"; td.innerHTML = k;
   tr.appendChild(td);
-  td = document.createElement("td"); td.className = "src";
+  td = document.createElement("td"); td.className = "src c2";
   td.innerHTML = KEY_SOURCE[k] || ""; tr.appendChild(td);
-  td = document.createElement("td"); td.className = have ? "yes" : "no";
+  td = document.createElement("td");
+  td.className = "st c3 " + (have ? "yes" : "no");
   td.innerHTML = have ? "set" : "empty"; tr.appendChild(td);
   body.appendChild(tr);
 }

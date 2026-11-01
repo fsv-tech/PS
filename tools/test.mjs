@@ -159,8 +159,10 @@ const ES6 = [
   ["URLSearchParams", /URLSearchParams/],
   ["async/await", /\basync\s+function|\bawait\s+/],
   ["optional chaining", /\?\./],
-  ["Object.assign", /Object\.assign/],
-  ["Number.isFinite", /Number\.isFinite/],
+  // A *call* is the violation; `typeof Object.assign === "function"` is how the
+  // capability probe asks whether the method exists, which is safe ES5.
+  ["Object.assign call", /Object\.assign\s*\(/],
+  ["Number.isFinite call", /Number\.isFinite\s*\(/],
   ["for...of", /for\s*\(\s*(?:var|let|const)\s+\w+\s+of\s/],
 ];
 
@@ -202,7 +204,7 @@ function stripNonCode(src) {
   return out;
 }
 
-for (const file of ["index.html", "measure.html"]) {
+for (const file of ["index.html", "measure.html", "caps.html"]) {
   const html = readFileSync(join(root, file), "utf8");
   // HTML comments and the <style> block are not JavaScript at all.
   const shell = html

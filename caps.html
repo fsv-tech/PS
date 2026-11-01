@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAW 14 -- engine capabilities</title>
+<style>
+  html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
+               font:16px/1.5 "Segoe UI", system-ui, sans-serif;
+               -webkit-text-size-adjust:100%; }
+  #wrap { padding:14px 18px 60px; max-width:100%; overflow-x:hidden;
+          box-sizing:border-box; }
+  h1 { font-size:20px; margin:0 0 6px; letter-spacing:.06em; }
+  #verdict { margin:12px 0; padding:14px 16px; border-left:8px solid #5c6672;
+             background:#0e1116; font-size:19px; line-height:1.35; }
+  #verdict b { display:block; font-size:21px; margin-bottom:4px; }
+  #verdict.good { border-left-color:#7fd0a0; } #verdict.good b { color:#7fd0a0; }
+  #verdict.warn { border-left-color:#d8c07f; } #verdict.warn b { color:#d8c07f; }
+  #verdict.bad  { border-left-color:#d08a7f; } #verdict.bad  b { color:#d08a7f; }
+  #sig { font:14px/1.6 Consolas, monospace; color:#8b95a3; background:#0e1116;
+         border:1px solid #1e2732; padding:10px 12px; word-break:break-all;
+         margin:0 0 6px; }
+  table { border-collapse:collapse; width:100%; table-layout:fixed;
+          font:14px/1.5 Consolas, monospace; }
+  th, td { text-align:left; padding:7px 9px; border-bottom:1px solid #1b232d;
+           vertical-align:top; word-wrap:break-word; }
+  th { color:#8b95a3; font-weight:600; }
+  th.c1, td.c1 { width:34%; }
+  th.c2, td.c2 { width:14%; }
+  th.c3, td.c3 { width:52%; }
+  .yes { color:#7fd0a0; } .no { color:#d08a7f; }
+  .note { font-size:13px; color:#5c6672; margin:14px 0 0; max-width:70em; }
+  a { color:#d8c07f; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>ENGINE CAPABILITIES</h1>
+  <div id="verdict"><b>measuring...</b></div>
+  <div id="sig">-</div>
+  <table id="tbl">
+    <thead><tr><th class="c1">capability</th><th class="c2">state</th><th class="c3">detail</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="note">Read-only: every check is a feature probe, nothing is allocated
+     beyond a few kilobytes and nothing is written to the console. What it decides
+     is which published chain could be ported to this build at all -- a chain that
+     needs BigInt cannot run on an engine that has none, whatever a README says.
+     <br><br><a href="index.html">back to the host</a> &middot;
+     <a href="measure.html">measurement checklist</a></p>
+</div>
+
+<script>
+var ua = navigator.userAgent || "";
+var webkit = (/AppleWebKit\/([0-9.]+)/.exec(ua) || [null, "?"])[1];
+var results = [];
+
+function add(name, ok, detail) {
+  results.push({ name: name, ok: !!ok, detail: detail || "" });
+}
+
+// A probe that throws is a "no" with the reason attached, not a page error.
+function probe(name, fn) {
+  var r;
+  try { r = fn(); } catch (e) { add(name, false, "threw: " + ((e && e.message) || e)); return; }
+  if (r === true) { add(name, true, "yes"); return; }
+  if (r === false) { add(name, false, "no"); return; }
+  if (r && typeof r === "object") { add(name, r.ok, r.detail); return; }
+  add(name, !!r, String(r));
+}
+
+// ---- the one that matters -------------------------------------------------
+// docs/01-entry-ssv claims a BigInt pooling bug in StructuredSerialize. There is
+// no BigInt in that bug: the serializer would have to be pooling a primitive the
+// engine does not have. So this single flag decides whether that entry exists on
+// this build, and it costs 6 bytes to ask.
+probe("BigInt", function () {
+  return { ok: typeof BigInt === "function", detail: typeof BigInt };
+});
+probe("BigInt literal syntax", function () {
+  return { ok: Function("return typeof 1n === 'bigint'")() === true, detail: "1n parses" };
+});
+probe("BigInt64Array", function () {
+  return { ok: typeof BigInt64Array === "function", detail: typeof BigInt64Array };
+});
+
+// ---- engine surface a chain has to work with ------------------------------
+probe("Web Worker", function () { return typeof Worker === "function"; });
+probe("Blob URL", function () {
+  var u = window.URL || window.webkitURL;
+  return { ok: !!(u && u.createObjectURL), detail: u ? "URL.createObjectURL" : "no URL object" };
+});
+probe("SharedArrayBuffer", function () { return typeof SharedArrayBuffer === "function"; });
+probe("Atomics", function () { return typeof Atomics !== "undefined"; });
+probe("WebAssembly", function () { return typeof WebAssembly === "object"; });
+probe("Promise", function () { return typeof Promise === "function"; });
+probe("async function syntax", function () {
+  Function("return (async function(){})()");
+  return { ok: true, detail: "parses" };
+});
+probe("dynamic import()", function () {
+  Function("return import('x')");
+  return true;
+});
+probe("Map / Set", function () {
+  return { ok: typeof Map === "function" && typeof Set === "function", detail: "" };
+});
+probe("Symbol", function () { return typeof Symbol === "function"; });
+probe("Proxy", function () { return typeof Proxy === "function"; });
+probe("Reflect", function () { return typeof Reflect === "object"; });
+probe("Object.assign", function () { return typeof Object.assign === "function"; });
+probe("Array.prototype.fill", function () { return typeof [].fill === "function"; });
+probe("TextEncoder", function () { return typeof TextEncoder === "function"; });
+probe("DataView", function () { return typeof DataView === "function"; });
+probe("Float64Array", function () { return typeof Float64Array === "function"; });
+probe("Uint32Array", function () { return typeof Uint32Array === "function"; });
+
+// ---- the two anchors the 13.x chain actually touches ----------------------
+probe("Math.expm1", function () {
+  return { ok: typeof Math.expm1 === "function", detail: "base-leak anchor" };
+});
+probe("Math.fround", function () { return typeof Math.fround === "function"; });
+probe("native fn toString", function () {
+  var s = Function.prototype.toString.call(Math.expm1);
+  return { ok: s.indexOf("[native code]") >= 0, detail: s.slice(0, 48) };
+});
+
+// ---- fingerprint bits -----------------------------------------------------
+probe("performance.now", function () {
+  return { ok: typeof performance === "object" && !!performance.now,
+           detail: performance && performance.now ? "present" : "absent" };
+});
+probe("hardwareConcurrency", function () {
+  return { ok: navigator.hardwareConcurrency > 0, detail: String(navigator.hardwareConcurrency) };
+});
+probe("WebGL 1", function () {
+  var c = document.createElement("canvas");
+  return { ok: !!c.getContext("webgl"), detail: "" };
+});
+probe("WebGL 2", function () {
+  var c = document.createElement("canvas");
+  return { ok: !!c.getContext("webgl2"), detail: "" };
+});
+probe("localStorage", function () {
+  return { ok: !!window.localStorage, detail: "" };
+});
+probe("indexedDB", function () { return typeof indexedDB === "object"; });
+
+// ---- render ---------------------------------------------------------------
+var tbody = document.getElementById("tbl").getElementsByTagName("tbody")[0];
+var i, r, tr, td, yes = 0;
+
+for (i = 0; i < results.length; i++) {
+  r = results[i];
+  if (r.ok) yes++;
+  tr = document.createElement("tr");
+  td = document.createElement("td"); td.className = "c1"; td.innerHTML = r.name;
+  tr.appendChild(td);
+  td = document.createElement("td"); td.className = "c2 " + (r.ok ? "yes" : "no");
+  td.innerHTML = r.ok ? "yes" : "NO";
+  tr.appendChild(td);
+  td = document.createElement("td"); td.className = "c3"; td.innerHTML = r.detail;
+  tr.appendChild(td);
+  tbody.appendChild(tr);
+}
+
+function find(name) {
+  for (var j = 0; j < results.length; j++) if (results[j].name === name) return results[j];
+  return null;
+}
+
+var big = find("BigInt");
+var bigLit = find("BigInt literal syntax");
+var worker = find("Web Worker");
+var v = document.getElementById("verdict");
+var major = parseInt(webkit.split(".")[0], 10) || 0;
+
+if (big && !big.ok) {
+  v.className = "bad";
+  v.innerHTML = "<b>NO BIGINT -- THE SSV ENTRY CANNOT EXIST HERE</b>"
+    + "This engine has no BigInt, and no BigInt literal syntax"
+    + (bigLit && !bigLit.ok ? " (confirmed: <code>1n</code> is a syntax error)" : "")
+    + ". The entry described in <code>docs/01-entry-ssv</code> is a BigInt pooling"
+    + " bug in StructuredSerialize -- it needs a primitive this engine does not have."
+    + " Any claim of a working 14.00 userland chain on this build is describing a"
+    + " different engine than the one in front of you.";
+} else if (big && big.ok) {
+  v.className = "warn";
+  v.innerHTML = "<b>BIGINT PRESENT -- THE UA STRING IS NOT THE ENGINE</b>"
+    + "This browser has BigInt"
+    + (major && major < 600
+        ? " while still reporting AppleWebKit/" + webkit
+          + ". A 537.x WebKit has no BigInt, so that version string is a fixed"
+          + " label Sony kept, not the engine behind it."
+        : " and reports AppleWebKit/" + webkit + ".")
+    + " Either way the conclusion is the same: <i>'the engine is frozen because"
+    + " the UA says 537.x' is not evidence</i>, and 13.52 WebKit RVAs cannot be"
+    + " inherited on the strength of it. Measure them on this build.";
+}
+if (!worker || !worker.ok) {
+  // Append, do not replace: the banner may already carry bad/warn.
+  if (v.className.indexOf("bad") < 0 && v.className.indexOf("warn") < 0) {
+    v.className = "warn";
+  }
+  v.innerHTML += "<br><br><b>NO WORKERS</b> -- the Lapse-family"
+    + " <code>aio_multi_delete</code> race needs two concurrent syscall streams."
+    + " Without workers that lead closes too.";
+}
+
+var sig = "CAPS|webkit=" + webkit + "|bigint=" + ((big && big.ok) ? 1 : 0)
+  + "|worker=" + ((worker && worker.ok) ? 1 : 0)
+  + "|wasm=" + ((find("WebAssembly") && find("WebAssembly").ok) ? 1 : 0)
+  + "|proxy=" + ((find("Proxy") && find("Proxy").ok) ? 1 : 0)
+  + "|yes=" + yes + "/" + results.length;
+document.getElementById("sig").innerHTML = sig;
+</script>
+</body>
+</html>

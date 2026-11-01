@@ -86,6 +86,11 @@ node tools/test.mjs      # 26 checks, all pass
   complete-but-unmeasured entries.
 - `measure.html` — per-key checklist with the source of each measurement and a
   JSON skeleton to fill in; ES5, same gate block as `index.html`.
+- `caps.html` — engine capability report (30 feature probes, ES5, read-only).
+  Decides which published chain could be ported to this build at all: the SSV
+  entry is a BigInt pooling bug, so `bigint=0` falsifies it outright; and
+  `bigint=1` under an `AppleWebKit/537.x` UA proves the UA string is a fixed
+  label, not the engine version.
 - `tools/test.mjs` — gate rules, inline-vs-module parity on both pages, and an
   ES5 lint that fails on any construct the console engine cannot parse.
 - `tools/rebuild_jar.py`, `tools/neutralize_beacon.py`.
