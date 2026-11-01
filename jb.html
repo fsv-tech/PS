@@ -3,24 +3,134 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RAW 14 -- chain not bundled</title>
+<title>RAW 14 -- chain</title>
 <style>
-  html, body { margin:0; background:#0b0d10; color:#c8ced8;
-               font:15px/1.5 "Segoe UI", system-ui, sans-serif; padding:16px; }
-  h1 { font-size:18px; color:#d08a7f; margin:0 0 8px; }
-  code { color:#d8c07f; }
+  html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
+               font:15px/1.45 "Segoe UI", system-ui, sans-serif;
+               -webkit-text-size-adjust:100%; }
+  #brand { text-align:center; padding:10px; background:#0e1116;
+           border-bottom:1px solid #1e2732; letter-spacing:.18em;
+           font-weight:700; color:#e6ebf2; font-size:14px; }
+  #wrap { padding:16px 18px 50px; }
+  /* raw13g's jb.js writes into #state and #out and toggles body.done/fail. The
+     ids and classes below are the contract it already expects -- keep them. */
+  #state { font-size:22px; font-weight:700; margin:0 0 8px; }
+  #det { font-size:13px; color:#8b95a3; margin:0 0 10px; }
+  #out { font:12px/1.6 Consolas, monospace; color:#8b95a3; white-space:pre-wrap;
+         word-break:break-word; border-left:3px solid #1e2732; padding-left:12px;
+         max-height:60vh; overflow:auto; }
+  .ok { color:#7fd0a0; } .bad { color:#d08a7f; } .warn { color:#d8c07f; }
+  body.done #state { color:#7fd0a0; }
+  body.fail #state { color:#d08a7f; }
+  ul#miss { font:12px/1.6 Consolas, monospace; color:#8b95a3; margin:8px 0 0;
+            padding-left:18px; max-height:30vh; overflow:auto; }
+  a { color:#d8c07f; }
+  #back { margin:14px 0 0; font-size:13px; }
 </style>
 </head>
 <body>
-<h1>CHAIN NOT BUNDLED</h1>
-<p>This package is the host only. The WebKit chain (<code>jb.js</code>, <code>core.js</code>,
-<code>mem.js</code>, <code>int64.js</code>) and the per-firmware patches
-(<code>patches/*.bin</code>) are not part of it, because no 14.00-capable chain exists
-to copy: the public WebKit tables stop at 13.52.</p>
-<p>If you reach this page, the gate was bypassed with <code>?force=1</code> or a table
-was hand-edited to look complete. Neither makes the chain appear.</p>
-<p>Drop the four chain files and <code>patches/</code> next to this page, fill
-<code>PS4["14.00"]</code> from real measurements, and this page becomes the real entry
-point without any other change.</p>
+<div id="brand">RAW 14</div>
+<div id="wrap">
+  <div id="state">checking table...</div>
+  <div id="det"></div>
+  <ul id="miss"></ul>
+  <div id="out"></div>
+  <p id="back"><a href="index.html">back to the host</a> &middot;
+     <a href="caps.html">engine capabilities</a></p>
+</div>
+
+<script type="module">
+// This page is the launcher, not the chain. It does exactly three things:
+//   1. load fwtable.js + gate.js and refuse to go further unless the table for
+//      the detected firmware is whole AND declares itself measured;
+//   2. say which host files are missing, by name, instead of showing a blank
+//      screen (a 404 on a module is silent in some of these builds);
+//   3. import ./jb.js -- and nothing else. If jb.js is not in the package, this
+//      page is where that fact becomes visible.
+//
+// No offsets live here. A launcher that invents a table is worse than a stub.
+
+const params = new URLSearchParams(location.search);
+const v = params.get("v") || "";
+const bust = v ? "?v=" + encodeURIComponent(v) : "";
+
+const stateEl = document.getElementById("state");
+const detEl = document.getElementById("det");
+const missEl = document.getElementById("miss");
+const outEl = document.getElementById("out");
+
+function say(text, tone) {
+  stateEl.textContent = text;
+  stateEl.className = tone || "";
+}
+
+function line(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  outEl.appendChild(div);
+}
+
+(async function () {
+  let fwtable, gate, fw, verdict;
+
+  try {
+    fwtable = await import("./fwtable.js" + bust);
+    gate = await import("./gate.js" + bust);
+  } catch (e) {
+    say("HOST FILES MISSING", "bad");
+    detEl.textContent = "fwtable.js / gate.js did not load: " + (e && e.message || e);
+    line("Serve this directory over HTTP and keep the files in the same folder.");
+    document.body.className = "fail";
+    return;
+  }
+
+  fw = gate.detectFirmware(navigator.userAgent);
+  const entry = fw.key ? fwtable.offsetsFor(fw.key) : null;
+  verdict = gate.checkEntry(entry, fwtable.REQUIRED_KEYS);
+
+  detEl.textContent = "firmware " + (fw.key || "unknown")
+    + " · gate " + verdict.state
+    + " · " + (fwtable.REQUIRED_KEYS.length - verdict.missing.length)
+    + "/" + fwtable.REQUIRED_KEYS.length + " keys";
+
+  if (!verdict.ok) {
+    say("REFUSING TO LAUNCH", "bad");
+    for (const k of verdict.missing) {
+      const li = document.createElement("li");
+      li.textContent = k;
+      missEl.appendChild(li);
+    }
+    for (const b of verdict.bad) line(b);
+    line("");
+    line("The table for " + (fw.key || "this firmware") + " is not whole, so there is");
+    line("nothing to hand to the chain. This page stops here on purpose: a chain that");
+    line("starts with a wrong RVA does not fail cleanly, it corrupts memory where the");
+    line("kernel will not survive it.");
+    line("");
+    line("Fill PS4[\"" + (fw.key || "…") + "\"] in fwtable.js from measurements on this");
+    line("console and set measured: true. measure.html lists what each key is.");
+    document.body.className = "fail";
+    return;
+  }
+
+  // Table is whole and self-declared measured. Only now does the chain get a turn.
+  say("TABLE OK -- LOADING CHAIN", "warn");
+  line("table ready for " + fw.key + "; importing ./jb.js" + (v ? "?v=" + v : ""));
+
+  try {
+    await import("./jb.js" + bust);
+    say("CHAIN LOADED", "ok");
+    line("jb.js is running. Its own log appears below as it writes to #out.");
+  } catch (e) {
+    say("CHAIN NOT IN THIS PACKAGE", "bad");
+    document.body.className = "fail";
+    line(String(e && e.message || e));
+    line("");
+    line("The table is ready but the chain is not here. jb.js and its dependencies");
+    line("(core.js, mem.js, int64.js, patches/*.bin) have to sit next to this page.");
+    line("Expect a 404 -- no 14.00-capable jb.js exists publicly today.");
+  }
+})();
+</script>
 </body>
 </html>

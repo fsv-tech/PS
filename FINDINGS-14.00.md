@@ -19,6 +19,30 @@ Read this before you burn another disc.
 
 ---
 
+## 0. Measured on the console — 2026-11-01
+
+`caps.html` on a stock 14.00 unit:
+
+```
+CAPS|webkit=605.1.15|bigint=1|worker=1|wasm=0|proxy=1|yes=25/30
+```
+
+| probe | result | consequence |
+|---|---|---|
+| `AppleWebKit` | **605.1.15** | 14.00 is *not* the 537.x engine that 13.x ships. The "frozen engine, inherit 13.52 RVAs" premise in `docs/01-entry-ssv/frozen-engine.md` is measured false. |
+| BigInt / BigInt literal / BigInt64Array | yes | the SSV bug class is not ruled out by absence — whether that bug survives in 605.1.15 is untested |
+| Web Worker | yes | the `aio_multi_delete` TOCTOU lead (needs two concurrent syscall streams) stays open |
+| WebGL 1 / WebGL 2 | **no** | the canvas/WebGL OOB surface is gone |
+| WebAssembly | **no** | the WASM surface is gone |
+| SharedArrayBuffer | **no** (Atomics present but useless without it) | shared-memory threading tricks are out |
+| hardwareConcurrency | **4** | contradicts the "browser gets cores 6-7" note in `candidates/main__STATUS.md` |
+
+Two of those change the plan rather than refine it: the engine is a different
+major WebKit, and three of the usual exploit surfaces are switched off. This is
+not a port job.
+
+---
+
 ## 1. What was broken for the console, and is now fixed
 
 `index.html` and `measure.html` were written as `<script type="module">` with
@@ -102,12 +126,32 @@ The rest of that file says so itself, in its own header:
 // Kernel panic hazard if uniform deltas (+0x350) are executed.
 ```
 
-The kernel half is no better. `offsets__kernel-1400.md` says
+The kernel half was no better. `offsets__kernel-1400.md` says
 `SYSENT = 0x1102B70` and explicitly warns that the `0x110A760` circulating
-elsewhere is the 13.52 value. `main__1400_offsets.txt` says
+elsewhere is the 13.52 value; `main__1400_offsets.txt` says
 `SYSENT = 0x0110A760 (Carried from 13.52; DO NOT revert to 13.04 0x01102B70)`.
-One of those two sentences is wrong, and nothing in the tree can tell you
-which.
+One of those two sentences is wrong.
+
+**Update 2026-11-01 — it is now decided, and against the second one.** `bonk/hen.bin`
+carries a symbol block at `0x11180`, six u32 fields wide, and it agrees with
+`offsets__kernel-1400.md` on every shared entry:
+
+```
+0x011180  c0 01 00 00  18 fa 11 01  90 6e 13 02  00 0d 52 01
+          XFAST_SYSCALL 0x1c0   PRISON0 0x111fa18   ROOTVNODE 0x2136e90   M_TEMP 0x1520d00
+0x011190  c8 d6 53 01  38 85 b2 01  50 73 64 02  80 c0 65 02
+          0x153d6c8      ALLPROC 0x1b28538   0x2647350    0x265c080
+0x0111b0  c0 42 65 02  70 2b 10 01  60 40 39 00  40 38 0a 00
+          FPU_CTX 0x26542c0   SYSENT 0x1102b70   0x394060    _sx_xlock 0xa3840
+0x0111c0  00 3a 0a 00  20 95 00 00  e0 96 00 00  70 cb 21 00
+          _sx_xunlock 0xa3a00  malloc 0x9520   free 0x96e0   0x21cb70
+```
+
+`SYSENT = 0x1102B70`, and `_sx_xlock`, `_sx_xunlock`, `malloc`, `free`,
+`XFAST_SYSCALL` all match the "known stable" list in `main__1400_offsets.txt` too.
+So the **kernel** numbers here are corroborated by a compiled artifact and should
+be treated as good. The **WebKit** numbers are still the 13.52 row with a page
+added, and the engine is still 605.1.15. Do not let the one contaminate the other.
 
 And `_research/brstation/1400.bin` — the "1400 kernel patch blob" — is a
 632-byte file that differs from `1352_ref.bin` in 99 bytes. The first
@@ -229,6 +273,26 @@ Two ways to deal with it, in order of preference:
 `X-Ticket` and `CKEY` are left in place on purpose — a header name and an
 application key are not addresses, and blanking them would only damage the
 class files for no gain.
+
+### It is a payload, not an entry
+
+Worth being blunt about, because it is the reason this disc cannot be "made to
+work" by editing it: to run `hen.bin` — a raw x86-64 blob — at `uid=0`, the
+Blu-ray Java Xlet must already be able to execute native code with kernel
+access. The Xlet's own strings describe that state as a given:
+
+```
+uid=0, patch the kernel, then load and launch hen.bin
+kernel is stock - 1400.bin will be applied
+syscall 11 IS NOW kexec
+```
+
+Nothing in the image produces that state. There is no BD-J → native bridge on a
+retail console, and no public PS4 BD-J sandbox escape exists. So the disc is the
+second half of a chain whose first half is missing — and its kernel patch is
+`1352.bin` rebased by `+0x2a0`, which assumes the 14.00 kernel is a uniform
+displacement of 13.52 across all 81 write sites. If that assumption is wrong
+anywhere, it writes into kernel `.text` and the console does not come back.
 
 ---
 
