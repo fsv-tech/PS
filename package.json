@@ -1,0 +1,6 @@
+{
+  "name": "raw14g-host",
+  "private": true,
+  "type": "module",
+  "description": "raw13g-shaped PS4 exploit host, gated on a measured 14.00 offset table"
+}

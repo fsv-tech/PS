@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAW 14 -- chain not bundled</title>
+<style>
+  html, body { margin:0; background:#0b0d10; color:#c8ced8;
+               font:15px/1.5 "Segoe UI", system-ui, sans-serif; padding:16px; }
+  h1 { font-size:18px; color:#d08a7f; margin:0 0 8px; }
+  code { color:#d8c07f; }
+</style>
+</head>
+<body>
+<h1>CHAIN NOT BUNDLED</h1>
+<p>This package is the host only. The WebKit chain (<code>jb.js</code>, <code>core.js</code>,
+<code>mem.js</code>, <code>int64.js</code>) and the per-firmware patches
+(<code>patches/*.bin</code>) are not part of it, because no 14.00-capable chain exists
+to copy: the public WebKit tables stop at 13.52.</p>
+<p>If you reach this page, the gate was bypassed with <code>?force=1</code> or a table
+was hand-edited to look complete. Neither makes the chain appear.</p>
+<p>Drop the four chain files and <code>patches/</code> next to this page, fill
+<code>PS4["14.00"]</code> from real measurements, and this page becomes the real entry
+point without any other change.</p>
+</body>
+</html>

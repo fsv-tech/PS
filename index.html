@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAW 14</title>
+<style>
+  html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
+               font:15px/1.45 "Segoe UI", system-ui, sans-serif; }
+  #brand { text-align:center; padding:10px; background:#0e1116;
+           border-bottom:1px solid #1e2732; letter-spacing:.18em;
+           font-weight:700; color:#e6ebf2; font-size:14px; }
+  #wrap { padding:16px 18px; }
+  #state { font-size:22px; font-weight:700; margin:0 0 6px; }
+  #det { font-size:13px; color:#8b95a3; margin:0 0 4px; }
+  #det b { color:#c8ced8; font-weight:600; }
+  #why { font-size:12px; color:#5c6672; margin:10px 0 0; min-height:14px; }
+  #tap { font-size:14px; color:#d8c07f; font-weight:600; margin:10px 0 0;
+         min-height:14px; }
+  .ok { color:#7fd0a0; } .bad { color:#d08a7f; } .warn { color:#d8c07f; }
+  ul#miss { font:12px/1.6 Consolas, monospace; color:#8b95a3; margin:8px 0 0;
+            padding-left:18px; max-height:34vh; overflow:auto; }
+</style>
+</head>
+<body>
+<div id="brand">RAW 14</div>
+<div id="wrap">
+  <div id="state">detecting firmware...</div>
+  <div id="det"></div>
+  <ul id="miss"></ul>
+  <div id="why"></div>
+  <div id="tap"></div>
+</div>
+
+<script type="module">
+import { PS4, REQUIRED_KEYS, offsetsFor } from "./fwtable.js";
+import { checkEntry, detectFirmware } from "./gate.js";
+
+const stateEl = document.getElementById("state");
+const detEl   = document.getElementById("det");
+const missEl  = document.getElementById("miss");
+const whyEl   = document.getElementById("why");
+const tapEl   = document.getElementById("tap");
+
+function setState(t, c) { stateEl.textContent = t; stateEl.className = c || ""; }
+
+const params = new URLSearchParams(location.search);
+const fw = detectFirmware(navigator.userAgent);
+const forced = params.get("force") === "1";
+
+const entry = fw.key ? offsetsFor(fw.key) : null;
+const verdict = checkEntry(entry, REQUIRED_KEYS);
+const ready = forced || verdict.ok;
+
+detEl.innerHTML = "firmware <b>" + (fw.key || "unknown") + "</b>"
+  + " &middot; <b>" + (verdict.ok ? "table ready" : "no 14.00 table") + "</b>";
+
+if (verdict.missing.length) {
+  missEl.innerHTML = verdict.missing
+    .slice(0, 40)
+    .map(function (k) { return "<li>" + k + "</li>"; })
+    .join("");
+}
+if (verdict.bad.length) {
+  whyEl.textContent = verdict.bad.slice(0, 3).join(" | ");
+}
+
+function waitForTap(msg, action) {
+  tapEl.textContent = msg;   // headline and explanation stay put
+  function fire() {
+    window.removeEventListener("click", fire);
+    window.removeEventListener("keydown", fire);
+    action();
+  }
+  window.addEventListener("click", fire);
+  window.addEventListener("keydown", fire);
+}
+
+if (ready) {
+  setState("loading jailbreak...", "warn");
+  location.replace("jb.html" + location.search);
+} else {
+  setState("NO MEASURED TABLE", "bad");
+  whyEl.innerHTML =
+    "This build ships no measured WebKit / kernel RVAs for " + (fw.key || "this firmware") +
+    ". Nothing is guessed on purpose: a wrong RVA is not a clean crash. "
+    + "Press X to open the measurement checklist.";
+  waitForTap("PRESS X -- open checklist (no chain will run)",
+             function () { location.href = "measure.html" + location.search; });
+}
+</script>
+</body>
+</html>

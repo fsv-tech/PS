@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAW 14 -- door map</title>
+<style>
+  /* Sized for a 10-foot read, not a desk: 22px body, 34px verdicts, and no
+     control smaller than a thumb. Everything scrolls as one column because a
+     nested scroller on a TV is a trap. */
+  html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
+               font:22px/1.4 "Segoe UI", system-ui, sans-serif;
+               -webkit-text-size-adjust:100%; }
+  #hdr { display:flex; justify-content:space-between; align-items:baseline;
+         gap:16px; padding:14px 28px; background:#0e1116;
+         border-bottom:1px solid #1e2732; }
+  #hdr b { letter-spacing:.20em; font-size:20px; color:#e6ebf2; }
+  #hdr span { font:16px/1.3 Consolas, monospace; color:#5c6672; }
+  #wrap { padding:22px 28px 60px; max-width:1500px; }
+
+  #stage { font-size:26px; font-weight:600; color:#d8c07f; min-height:34px; }
+  #timer { font:16px/1 Consolas, monospace; color:#5c6672; margin-top:6px; }
+
+  #decision { display:none; margin:20px 0 6px; padding:18px 22px;
+              background:#0e1116; border-left:8px solid #5c6672; }
+  #decision h2 { margin:0 0 8px; font-size:34px; line-height:1.2; }
+  #decision p { margin:0; font-size:20px; color:#8b95a3; }
+  #decision.good { border-left-color:#7fd0a0; }
+  #decision.good h2 { color:#7fd0a0; }
+  #decision.warn { border-left-color:#d8c07f; }
+  #decision.warn h2 { color:#d8c07f; }
+  #decision.bad { border-left-color:#d08a7f; }
+  #decision.bad h2 { color:#d08a7f; }
+
+  h3 { font-size:15px; letter-spacing:.18em; color:#5c6672;
+       margin:30px 0 10px; font-weight:600; }
+
+  #probes .row { display:grid; grid-template-columns:34% 20% 46%;
+                 gap:10px; padding:11px 0; border-bottom:1px solid #171e26; }
+  #probes .row.head { color:#5c6672; font-size:15px; letter-spacing:.14em;
+                      border-bottom-color:#1e2732; }
+  #probes .n { color:#e6ebf2; font-weight:600; }
+  #probes .v { font-weight:700; }
+  #probes .d { font:16px/1.45 Consolas, monospace; color:#8b95a3;
+               word-break:break-word; }
+  .good { color:#7fd0a0; } .warn { color:#d8c07f; } .bad { color:#d08a7f; }
+  .idle { color:#5c6672; }
+
+  #log { font:16px/1.55 Consolas, monospace; color:#8b95a3;
+         border-left:3px solid #1e2732; padding-left:14px; }
+  #log div { white-space:pre-wrap; word-break:break-word; }
+  #log .t { color:#c8ced8; }
+
+  #json { font:15px/1.5 Consolas, monospace; color:#8b95a3; background:#0e1116;
+          border:1px solid #1e2732; padding:14px; overflow-x:auto;
+          white-space:pre; }
+
+  #foot { position:fixed; left:0; right:0; bottom:0; display:flex;
+          justify-content:space-between; gap:16px; padding:10px 28px;
+          background:#0e1116; border-top:1px solid #1e2732;
+          font:15px/1.3 Consolas, monospace; color:#5c6672; }
+</style>
+</head>
+<body>
+<div id="hdr"><b>RAW 14 &middot; DOOR MAP</b><span id="where">-</span></div>
+
+<div id="wrap">
+  <div id="stage">starting</div>
+  <div id="timer"></div>
+
+  <div id="decision"><h2></h2><p></p></div>
+
+  <h3>PROBES</h3>
+  <div id="probes"><div class="row head"><div>PROBE</div><div>VERDICT</div><div>DETAIL</div></div></div>
+
+  <h3>RUN LOG</h3>
+  <div id="log"></div>
+
+  <h3>REPORT</h3>
+  <pre id="json">(not finished)</pre>
+</div>
+
+<div id="foot">
+  <div>&uarr;&darr; scroll &middot; PAGE up/down &middot; X re-run</div>
+  <div id="base">base: -</div>
+</div>
+
+<script type="module">
+import { boot } from "./boot.js";
+
+const params = new URLSearchParams(location.search);
+const base = params.get("base") || "../";
+const auto = params.get("auto") !== "0";
+const allowDeviceProbe = params.get("dipsw") === "1";
+const fw = params.get("fw") || undefined;
+const anchorRaw = params.get("anchor");
+const anchor = anchorRaw
+  ? (/^0x/i.test(anchorRaw) ? parseInt(anchorRaw, 16) : Number(anchorRaw))
+  : undefined;
+
+const stageEl = document.getElementById("stage");
+const timerEl = document.getElementById("timer");
+const decEl = document.getElementById("decision");
+const decH = decEl.querySelector("h2");
+const decP = decEl.querySelector("p");
+const tableEl = document.getElementById("probes");
+const logEl = document.getElementById("log");
+const jsonEl = document.getElementById("json");
+
+document.getElementById("where").textContent =
+  (navigator.userAgent.match(/PlayStation\s+4[\/ ]\d+\.\d+/) || ["not a PS4 UA"])[0];
+document.getElementById("base").textContent = "base: " + base;
+
+// The marks boot.js emits map onto one line, so the operator can see which
+// stage is in flight instead of watching a blank screen for a minute.
+const STAGE_OF = {
+  CHAIN: "loading chain from " + base,
+  FW: "firmware table",
+  PRIMITIVE: "building the memory primitive",
+  "PRIMITIVE-OK": "primitive up",
+  BASES: "deriving module bases",
+  GADGETS: "verifying 15 gadgets",
+  STUBS: "discovering syscall stubs",
+  GATEWAY: "building the syscall gateway",
+  "PROBE-START": "running the door map",
+  "PROBE-END": "door map complete",
+  DECISION: "done",
+};
+
+let tick = 0;
+const t0 = Date.now();
+
+function addLog(tag, detail) {
+  const line = document.createElement("div");
+  const t = document.createElement("span");
+  t.className = "t";
+  t.textContent = tag;
+  line.appendChild(t);
+  if (detail) line.appendChild(document.createTextNode("  " + detail));
+  logEl.appendChild(line);
+  if (STAGE_OF[tag]) stageEl.textContent = STAGE_OF[tag];
+}
+
+function tone(verdict) {
+  if (["PASS", "SLEEPS", "ALIVE", "ACCEPTED"].indexOf(verdict) >= 0) return "good";
+  if (["GATED", "CLOSED", "SKIPPED", "UNRESOLVED"].indexOf(verdict) >= 0) return "warn";
+  if (["FAIL", "UNKNOWN", "THREW"].indexOf(verdict) >= 0) return "bad";
+  return "idle";
+}
+
+function addRow(name, verdict, detail) {
+  const row = document.createElement("div");
+  row.className = "row";
+  const n = document.createElement("div");
+  n.className = "n"; n.textContent = name;
+  const v = document.createElement("div");
+  v.className = "v " + tone(verdict); v.textContent = verdict;
+  const d = document.createElement("div");
+  d.className = "d"; d.textContent = detail || "";
+  row.appendChild(n); row.appendChild(v); row.appendChild(d);
+  tableEl.appendChild(row);
+}
+
+function showDecision(decision, failedStage, error) {
+  decEl.style.display = "block";
+  decEl.className = decision.tone || "";
+  decH.textContent = failedStage
+    ? "STOPPED AT " + String(failedStage).toUpperCase()
+    : decision.headline;
+  decP.textContent = failedStage ? error : decision.body;
+  decEl.scrollIntoView({ block: "start" });
+}
+
+async function run() {
+  stageEl.textContent = "starting";
+  timerEl.textContent = "";
+  addLog("PAGE", "base=" + base + (allowDeviceProbe ? "  dipsw armed" : ""));
+  if (fw) addLog("PAGE", "firmware forced to " + fw + " (table override)");
+
+  const clock = setInterval(function () {
+    tick = (Date.now() - t0) / 1000;
+    timerEl.textContent = tick.toFixed(1) + " s";
+  }, 100);
+
+  let out;
+  try {
+    out = await boot({
+      base: base,
+      // Appending ?v=N to the page URL busts the *chain* imports too: the PS4
+      // browser caches aggressively and a stale ps4_offsets.js looks exactly
+      // like a table that was never edited.
+      v: params.get("v") || undefined,
+      fw: fw,
+      anchor: anchor,
+      allowDeviceProbe: allowDeviceProbe,
+      mark: function (tag, detail) { addLog(tag, detail); },
+    });
+  } catch (e) {
+    // boot() has its own boundary; reaching here means the page itself broke
+    // (a 404 on boot.js, a file:// origin, a syntax error in the chain).
+    out = null;
+    showDecision({ tone: "bad", headline: "PAGE ERROR", body: "" }, "page", (e && e.message) || String(e));
+    addLog("PAGE-THREW", (e && e.message) || String(e));
+  } finally {
+    clearInterval(clock);
+  }
+
+  if (!out) return;
+
+  if (!out.ok) {
+    stageEl.textContent = "stopped at " + out.stage;
+    showDecision(out.decision, out.stage, out.error);
+  } else {
+    stageEl.textContent = "done";
+    showDecision(out.decision);
+  }
+
+  const rows = out.results || [];
+  for (const r of rows) addRow(r.name, r.verdict, r.detail);
+  if (!rows.length)
+    addRow("(none)", "NOT RUN", "the run stopped at " + out.stage + " before the door map");
+
+  jsonEl.textContent = JSON.stringify(out.report, null, 2);
+  timerEl.textContent = ((Date.now() - t0) / 1000).toFixed(1) + " s total";
+}
+
+// D-pad and the browser's own arrow keys both arrive here.
+window.addEventListener("keydown", function (e) {
+  const h = window.innerHeight;
+  if (e.key === "ArrowDown") window.scrollBy(0, 120);
+  else if (e.key === "ArrowUp") window.scrollBy(0, -120);
+  else if (e.key === "PageDown") window.scrollBy(0, h * 0.85);
+  else if (e.key === "PageUp") window.scrollBy(0, -h * 0.85);
+  else if (e.key === "x" || e.key === "X" || e.key === "Enter") location.reload();
+  else return;
+  e.preventDefault();
+});
+
+if (auto) run();
+else stageEl.textContent = "held (auto=0) -- press X to run";
+</script>
+</body>
+</html>
