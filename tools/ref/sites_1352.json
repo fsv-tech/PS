@@ -1,0 +1,582 @@
+[
+  {
+    "idx": 0,
+    "kind": "lstar_delta",
+    "insn_off": 16,
+    "field_off": 19,
+    "field_size": 4,
+    "rva": null,
+    "value": 4294966848,
+    "asm": "lea rcx, [rdx - 0x1c0]"
+  },
+  {
+    "idx": 1,
+    "kind": "site",
+    "insn_off": 56,
+    "field_off": 59,
+    "field_size": 2,
+    "rva": 1800099,
+    "value": 30627,
+    "asm": "mov word ptr [rcx + 0x1b77a3], ax"
+  },
+  {
+    "idx": 2,
+    "kind": "site",
+    "insn_off": 80,
+    "field_off": 83,
+    "field_size": 2,
+    "rva": 3131564,
+    "value": 51372,
+    "asm": "mov word ptr [rcx + 0x2fc8ac], ax"
+  },
+  {
+    "idx": 3,
+    "kind": "post_delta",
+    "insn_off": 98,
+    "field_off": 101,
+    "field_size": 4,
+    "rva": null,
+    "value": 316688,
+    "asm": "add rdx, 0x4d510"
+  },
+  {
+    "idx": 4,
+    "kind": "site",
+    "insn_off": 105,
+    "field_off": 108,
+    "field_size": 2,
+    "rva": 1800115,
+    "value": 30643,
+    "asm": "mov word ptr [rcx + 0x1b77b3], si"
+  },
+  {
+    "idx": 5,
+    "kind": "site",
+    "insn_off": 112,
+    "field_off": 115,
+    "field_size": 2,
+    "rva": 1800147,
+    "value": 30675,
+    "asm": "mov word ptr [rcx + 0x1b77d3], di"
+  },
+  {
+    "idx": 6,
+    "kind": "site",
+    "insn_off": 119,
+    "field_off": 123,
+    "field_size": 2,
+    "rva": 6456260,
+    "value": 33732,
+    "asm": "mov word ptr [rcx + 0x6283c4], r8w"
+  },
+  {
+    "idx": 7,
+    "kind": "site",
+    "insn_off": 127,
+    "field_off": 129,
+    "field_size": 4,
+    "rva": 2765,
+    "value": 2765,
+    "asm": "mov byte ptr [rcx + 0xacd], 0xeb"
+  },
+  {
+    "idx": 8,
+    "kind": "site",
+    "insn_off": 134,
+    "field_off": 136,
+    "field_size": 4,
+    "rva": 2872557,
+    "value": 2872557,
+    "asm": "mov byte ptr [rcx + 0x2bd4ed], 0xeb"
+  },
+  {
+    "idx": 9,
+    "kind": "site",
+    "insn_off": 141,
+    "field_off": 143,
+    "field_size": 4,
+    "rva": 2872625,
+    "value": 2872625,
+    "asm": "mov byte ptr [rcx + 0x2bd531], 0xeb"
+  },
+  {
+    "idx": 10,
+    "kind": "site",
+    "insn_off": 148,
+    "field_off": 150,
+    "field_size": 4,
+    "rva": 2872749,
+    "value": 2872749,
+    "asm": "mov byte ptr [rcx + 0x2bd5ad], 0xeb"
+  },
+  {
+    "idx": 11,
+    "kind": "site",
+    "insn_off": 155,
+    "field_off": 157,
+    "field_size": 4,
+    "rva": 2872817,
+    "value": 2872817,
+    "asm": "mov byte ptr [rcx + 0x2bd5f1], 0xeb"
+  },
+  {
+    "idx": 12,
+    "kind": "site",
+    "insn_off": 162,
+    "field_off": 164,
+    "field_size": 4,
+    "rva": 2873245,
+    "value": 2873245,
+    "asm": "mov byte ptr [rcx + 0x2bd79d], 0xeb"
+  },
+  {
+    "idx": 13,
+    "kind": "site",
+    "insn_off": 169,
+    "field_off": 171,
+    "field_size": 4,
+    "rva": 2874445,
+    "value": 2874445,
+    "asm": "mov byte ptr [rcx + 0x2bdc4d], 0xeb"
+  },
+  {
+    "idx": 14,
+    "kind": "site",
+    "insn_off": 176,
+    "field_off": 178,
+    "field_size": 4,
+    "rva": 2874653,
+    "value": 2874653,
+    "asm": "mov byte ptr [rcx + 0x2bdd1d], 0xeb"
+  },
+  {
+    "idx": 15,
+    "kind": "site",
+    "insn_off": 183,
+    "field_off": 187,
+    "field_size": 2,
+    "rva": 6458543,
+    "value": 36015,
+    "asm": "mov word ptr [rcx + 0x628caf], r9w"
+  },
+  {
+    "idx": 16,
+    "kind": "site",
+    "insn_off": 191,
+    "field_off": 193,
+    "field_size": 4,
+    "rva": 1168,
+    "value": 1168,
+    "asm": "mov dword ptr [rcx + 0x490], 0"
+  },
+  {
+    "idx": 17,
+    "kind": "site",
+    "insn_off": 201,
+    "field_off": 203,
+    "field_size": 4,
+    "rva": 1218,
+    "value": 1218,
+    "asm": "mov byte ptr [rcx + 0x4c2], 0xeb"
+  },
+  {
+    "idx": 18,
+    "kind": "site",
+    "insn_off": 208,
+    "field_off": 212,
+    "field_size": 2,
+    "rva": 1209,
+    "value": 1209,
+    "asm": "mov word ptr [rcx + 0x4b9], r10w"
+  },
+  {
+    "idx": 19,
+    "kind": "site",
+    "insn_off": 216,
+    "field_off": 220,
+    "field_size": 2,
+    "rva": 1205,
+    "value": 1205,
+    "asm": "mov word ptr [rcx + 0x4b5], r11w"
+  },
+  {
+    "idx": 20,
+    "kind": "site",
+    "insn_off": 224,
+    "field_off": 226,
+    "field_size": 4,
+    "rva": 3742998,
+    "value": 3742998,
+    "asm": "mov byte ptr [rcx + 0x391d16], 0xeb"
+  },
+  {
+    "idx": 21,
+    "kind": "site",
+    "insn_off": 231,
+    "field_off": 234,
+    "field_size": 2,
+    "rva": 1798756,
+    "value": 29284,
+    "asm": "mov word ptr [rcx + 0x1b7264], ax"
+  },
+  {
+    "idx": 22,
+    "kind": "site",
+    "insn_off": 238,
+    "field_off": 240,
+    "field_size": 4,
+    "rva": 1800216,
+    "value": 1800216,
+    "asm": "mov dword ptr [rcx + 0x1b7818], 0x13ce990"
+  },
+  {
+    "idx": 23,
+    "kind": "site",
+    "insn_off": 248,
+    "field_off": 250,
+    "field_size": 4,
+    "rva": 3924240,
+    "value": 3924240,
+    "asm": "mov dword ptr [rcx + 0x3be110], 0xc3c03148"
+  },
+  {
+    "idx": 24,
+    "kind": "site",
+    "insn_off": 258,
+    "field_off": 260,
+    "field_size": 4,
+    "rva": 2074682,
+    "value": 2074682,
+    "asm": "mov byte ptr [rcx + 0x1fa83a], 0x37"
+  },
+  {
+    "idx": 25,
+    "kind": "site",
+    "insn_off": 265,
+    "field_off": 267,
+    "field_size": 4,
+    "rva": 2074685,
+    "value": 2074685,
+    "asm": "mov byte ptr [rcx + 0x1fa83d], 0x37"
+  },
+  {
+    "idx": 26,
+    "kind": "site",
+    "insn_off": 272,
+    "field_off": 274,
+    "field_size": 4,
+    "rva": 17837440,
+    "value": 17837440,
+    "asm": "mov dword ptr [rcx + 0x1102d80], 2"
+  },
+  {
+    "idx": 27,
+    "kind": "site",
+    "insn_off": 282,
+    "field_off": 285,
+    "field_size": 4,
+    "rva": 17837448,
+    "value": 17837448,
+    "asm": "mov qword ptr [rcx + 0x1102d88], rdx"
+  },
+  {
+    "idx": 28,
+    "kind": "site",
+    "insn_off": 289,
+    "field_off": 291,
+    "field_size": 4,
+    "rva": 17837484,
+    "value": 17837484,
+    "asm": "mov dword ptr [rcx + 0x1102dac], 1"
+  },
+  {
+    "idx": 29,
+    "kind": "site",
+    "insn_off": 344,
+    "field_off": 347,
+    "field_size": 2,
+    "rva": 1201713,
+    "value": 22065,
+    "asm": "mov word ptr [rcx + 0x125631], ax"
+  },
+  {
+    "idx": 30,
+    "kind": "site",
+    "insn_off": 361,
+    "field_off": 364,
+    "field_size": 2,
+    "rva": 1201779,
+    "value": 22131,
+    "asm": "mov word ptr [rcx + 0x125673], ax"
+  },
+  {
+    "idx": 31,
+    "kind": "site",
+    "insn_off": 390,
+    "field_off": 393,
+    "field_size": 4,
+    "rva": 1201787,
+    "value": 1201787,
+    "asm": "mov qword ptr [rcx + 0x12567b], rax"
+  },
+  {
+    "idx": 32,
+    "kind": "site",
+    "insn_off": 402,
+    "field_off": 405,
+    "field_size": 2,
+    "rva": 1201805,
+    "value": 22157,
+    "asm": "mov word ptr [rcx + 0x12568d], ax"
+  },
+  {
+    "idx": 33,
+    "kind": "site",
+    "insn_off": 414,
+    "field_off": 416,
+    "field_size": 4,
+    "rva": 1201801,
+    "value": 1201801,
+    "asm": "mov dword ptr [rcx + 0x125689], 0xd0878b49"
+  },
+  {
+    "idx": 34,
+    "kind": "site",
+    "insn_off": 424,
+    "field_off": 426,
+    "field_size": 4,
+    "rva": 1201807,
+    "value": 1201807,
+    "asm": "mov byte ptr [rcx + 0x12568f], 0"
+  },
+  {
+    "idx": 35,
+    "kind": "site",
+    "insn_off": 431,
+    "field_off": 433,
+    "field_size": 4,
+    "rva": 1201814,
+    "value": 1201814,
+    "asm": "mov dword ptr [rcx + 0x125696], 0xb0b78b49"
+  },
+  {
+    "idx": 36,
+    "kind": "site",
+    "insn_off": 441,
+    "field_off": 444,
+    "field_size": 2,
+    "rva": 1201818,
+    "value": 22170,
+    "asm": "mov word ptr [rcx + 0x12569a], dx"
+  },
+  {
+    "idx": 37,
+    "kind": "site",
+    "insn_off": 448,
+    "field_off": 450,
+    "field_size": 4,
+    "rva": 1201820,
+    "value": 1201820,
+    "asm": "mov byte ptr [rcx + 0x12569c], 0"
+  },
+  {
+    "idx": 38,
+    "kind": "site",
+    "insn_off": 455,
+    "field_off": 457,
+    "field_size": 4,
+    "rva": 1201838,
+    "value": 1201838,
+    "asm": "mov dword ptr [rcx + 0x1256ae], 0x40878b49"
+  },
+  {
+    "idx": 39,
+    "kind": "site",
+    "insn_off": 465,
+    "field_off": 468,
+    "field_size": 2,
+    "rva": 1201842,
+    "value": 22194,
+    "asm": "mov word ptr [rcx + 0x1256b2], si"
+  },
+  {
+    "idx": 40,
+    "kind": "site",
+    "insn_off": 472,
+    "field_off": 474,
+    "field_size": 4,
+    "rva": 1201844,
+    "value": 1201844,
+    "asm": "mov byte ptr [rcx + 0x1256b4], 0"
+  },
+  {
+    "idx": 41,
+    "kind": "site",
+    "insn_off": 479,
+    "field_off": 481,
+    "field_size": 4,
+    "rva": 1201851,
+    "value": 1201851,
+    "asm": "mov dword ptr [rcx + 0x1256bb], 0x20b78b49"
+  },
+  {
+    "idx": 42,
+    "kind": "site",
+    "insn_off": 489,
+    "field_off": 492,
+    "field_size": 2,
+    "rva": 1201855,
+    "value": 22207,
+    "asm": "mov word ptr [rcx + 0x1256bf], di"
+  },
+  {
+    "idx": 43,
+    "kind": "site",
+    "insn_off": 496,
+    "field_off": 498,
+    "field_size": 4,
+    "rva": 1201857,
+    "value": 1201857,
+    "asm": "mov byte ptr [rcx + 0x1256c1], 0"
+  },
+  {
+    "idx": 44,
+    "kind": "site",
+    "insn_off": 503,
+    "field_off": 505,
+    "field_size": 4,
+    "rva": 1201875,
+    "value": 1201875,
+    "asm": "mov dword ptr [rcx + 0x1256d3], 0xc0bf8d49"
+  },
+  {
+    "idx": 45,
+    "kind": "site",
+    "insn_off": 513,
+    "field_off": 517,
+    "field_size": 2,
+    "rva": 1201879,
+    "value": 22231,
+    "asm": "mov word ptr [rcx + 0x1256d7], r8w"
+  },
+  {
+    "idx": 46,
+    "kind": "site",
+    "insn_off": 521,
+    "field_off": 523,
+    "field_size": 4,
+    "rva": 1201881,
+    "value": 1201881,
+    "asm": "mov byte ptr [rcx + 0x1256d9], 0"
+  },
+  {
+    "idx": 47,
+    "kind": "site",
+    "insn_off": 528,
+    "field_off": 530,
+    "field_size": 4,
+    "rva": 1201887,
+    "value": 1201887,
+    "asm": "mov dword ptr [rcx + 0x1256df], 0xe0bf8d49"
+  },
+  {
+    "idx": 48,
+    "kind": "site",
+    "insn_off": 538,
+    "field_off": 542,
+    "field_size": 2,
+    "rva": 1201891,
+    "value": 22243,
+    "asm": "mov word ptr [rcx + 0x1256e3], r9w"
+  },
+  {
+    "idx": 49,
+    "kind": "site",
+    "insn_off": 546,
+    "field_off": 548,
+    "field_size": 4,
+    "rva": 1201893,
+    "value": 1201893,
+    "asm": "mov byte ptr [rcx + 0x1256e5], 0"
+  },
+  {
+    "idx": 50,
+    "kind": "site",
+    "insn_off": 553,
+    "field_off": 555,
+    "field_size": 4,
+    "rva": 1201906,
+    "value": 1201906,
+    "asm": "mov dword ptr [rcx + 0x1256f2], 0xbf8d49"
+  },
+  {
+    "idx": 51,
+    "kind": "site",
+    "insn_off": 563,
+    "field_off": 567,
+    "field_size": 2,
+    "rva": 1201910,
+    "value": 22262,
+    "asm": "mov word ptr [rcx + 0x1256f6], r10w"
+  },
+  {
+    "idx": 52,
+    "kind": "site",
+    "insn_off": 571,
+    "field_off": 573,
+    "field_size": 4,
+    "rva": 1201912,
+    "value": 1201912,
+    "asm": "mov byte ptr [rcx + 0x1256f8], 0"
+  },
+  {
+    "idx": 53,
+    "kind": "site",
+    "insn_off": 578,
+    "field_off": 580,
+    "field_size": 4,
+    "rva": 1201918,
+    "value": 1201918,
+    "asm": "mov dword ptr [rcx + 0x1256fe], 0x20bf8d49"
+  },
+  {
+    "idx": 54,
+    "kind": "site",
+    "insn_off": 588,
+    "field_off": 592,
+    "field_size": 2,
+    "rva": 1201922,
+    "value": 22274,
+    "asm": "mov word ptr [rcx + 0x125702], r11w"
+  },
+  {
+    "idx": 55,
+    "kind": "site",
+    "insn_off": 596,
+    "field_off": 598,
+    "field_size": 4,
+    "rva": 1201924,
+    "value": 1201924,
+    "asm": "mov byte ptr [rcx + 0x125704], 0"
+  },
+  {
+    "idx": 56,
+    "kind": "site",
+    "insn_off": 603,
+    "field_off": 606,
+    "field_size": 2,
+    "rva": 1201935,
+    "value": 22287,
+    "asm": "mov word ptr [rcx + 0x12570f], ax"
+  },
+  {
+    "idx": 57,
+    "kind": "site",
+    "insn_off": 610,
+    "field_off": 612,
+    "field_size": 4,
+    "rva": 1201937,
+    "value": 1201937,
+    "asm": "mov byte ptr [rcx + 0x125711], 0xff"
+  }
+]

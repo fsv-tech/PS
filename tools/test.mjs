@@ -204,7 +204,7 @@ function stripNonCode(src) {
   return out;
 }
 
-for (const file of ["index.html", "measure.html", "caps.html"]) {
+for (const file of ["index.html", "measure.html", "caps.html", "scan.html"]) {
   const html = readFileSync(join(root, file), "utf8");
   // HTML comments and the <style> block are not JavaScript at all.
   const shell = html
