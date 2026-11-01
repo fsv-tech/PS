@@ -95,9 +95,10 @@ export const PS4 = {
     fw_status:
       "state=NO-TABLE no webkit module measured, no kernel_1400.elf, no 1400 kpatch blob " +
       "payload=none(kpatch+payload for 14.00 not built)",
-    // Everything the host needs and does not have. Left explicitly empty
-    // rather than zeroed, so a half-finished table can never pass the gate.
-    missing: REQUIRED_KEYS.filter((k) => k !== "fw_status"),
+    // Every offset key the host needs and does not have is simply absent --
+    // left out rather than zeroed, so a half-finished table can never pass the
+    // gate and gate.js names the gaps itself. Do not hand-add a `missing` field:
+    // it would look like measurement state and is not part of the schema.
   },
 };
 

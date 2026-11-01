@@ -6,51 +6,225 @@
 <title>RAW 14 -- measurement checklist</title>
 <style>
   html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
-               font:14px/1.5 "Segoe UI", system-ui, sans-serif; }
-  #wrap { padding:14px 16px; }
-  h1 { font-size:17px; margin:0 0 4px; letter-spacing:.06em; }
-  p.note { font-size:12px; color:#8b95a3; margin:0 0 12px; }
+               font:15px/1.5 "Segoe UI", system-ui, sans-serif;
+               -webkit-text-size-adjust:100%; }
+  #wrap { padding:14px 16px 50px; }
+  h1 { font-size:18px; margin:0 0 6px; letter-spacing:.06em; }
+  p.note { font-size:13px; color:#8b95a3; margin:0 0 12px; }
+  #head { font:12px/1.6 Consolas, monospace; color:#5c6672; margin:0 0 12px;
+          word-break:break-all; }
   table { border-collapse:collapse; width:100%; font:12px/1.5 Consolas, monospace; }
-  th, td { text-align:left; padding:5px 8px; border-bottom:1px solid #1b232d; vertical-align:top; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #1b232d;
+           vertical-align:top; }
   th { color:#8b95a3; font-weight:600; }
-  td.k { color:#c8ced8; white-space:nowrap; }
+  td.k { color:#c8ced8; word-break:break-all; }
   td.src { color:#5c6672; }
   .no { color:#d08a7f; } .yes { color:#7fd0a0; }
-  textarea { width:100%; height:150px; margin-top:14px; background:#0e1116;
-             color:#c8ced8; border:1px solid #1e2732; font:12px/1.5 Consolas, monospace;
-             padding:8px; box-sizing:border-box; }
+  textarea { width:100%; height:170px; margin-top:14px; background:#0e1116;
+             color:#c8ced8; border:1px solid #1e2732;
+             font:12px/1.5 Consolas, monospace; padding:8px;
+             box-sizing:border-box; }
+  a { color:#d8c07f; }
 </style>
 </head>
 <body>
 <div id="wrap">
   <h1>14.00 MEASUREMENT CHECKLIST</h1>
-  <p class="note">Fill each key from a real measurement, then paste the block into
-     <code>fwtable.js</code> under <code>PS4["14.00"]</code>. The gate re-checks it on load.</p>
+  <div id="head">-</div>
+  <p class="note">Fill each key from a real measurement on the console, then paste the
+     block into <code>fwtable.js</code> under <code>PS4["14.00"]</code> and set
+     <code>measured: true</code>. The gate re-checks it on load and still refuses
+     anything it cannot verify.</p>
   <table id="tbl"><thead><tr><th>key</th><th>source</th><th>state</th></tr></thead><tbody></tbody></table>
   <textarea id="out" spellcheck="false" readonly></textarea>
+  <p class="note"><a href="index.html">back to the host</a></p>
 </div>
 
-<script type="module">
-import { PS4, REQUIRED_KEYS, OPTIONAL_KEYS, KEY_SOURCE } from "./fwtable.js";
-import { checkEntry, detectFirmware } from "./gate.js";
+<script>
+/* GATE-INLINE-BEGIN
+   Same block as index.html and gate.js -- tools/test.mjs fails the build if the
+   three drift apart. Strict ES5: no modules, no arrow functions, no const/let.
+*/
+var RVA_LIMIT = 0x80000000;
+var PLACEHOLDER = /^(0x0+|0+)$/;
 
-const entry = PS4["14.00"] || {};
-const verdict = checkEntry(entry, REQUIRED_KEYS);
-const fw = detectFirmware(navigator.userAgent);
+var REQUIRED_KEYS = [
+  "fw_status",
+  "wk_expm1_builtin",
+  "wk_JSFunction_m_function",
+  "wk_POP_RDI_RET",
+  "wk_POP_RSI_RET",
+  "wk_POP_RDX_RET",
+  "wk_POP_RCX_RET",
+  "wk_POP_RAX_RET",
+  "wk_POP_R8_RET",
+  "wk_POP_R9_RET",
+  "wk_LEAVE_RET",
+  "wk_MOV_QWORD_PTR_RDI_RAX_RET",
+  "wk_MOV_RDI_RSI_30_CALL",
+  "wk_POP_RAX_MOV_RAX_JMP_18",
+  "wk_PUSH_RBP_MOV_RBP_RSP_10",
+  "wk_MOV_RDI_RAX_8_CALL_20",
+  "wk_MOV_RDX_RAX_18_CALL_10",
+  "wk_PUSH_RDX_POP_RSP_RET",
+  "pivot_view_sp",
+  "wk_ArrayBuffer_m_impl",
+  "wk_ArrayBuffer_m_contents_m_data",
+  "wk___imp___error",
+  "k__error",
+  "k_scan_stage1",
+  "k_scan_stage2",
+  "k_evf_cv",
+  "k_sysent_661",
+  "k_jmp_rsi"
+];
 
-const body = document.querySelector("#tbl tbody");
-const keys = REQUIRED_KEYS.concat(OPTIONAL_KEYS);
-for (const k of keys) {
-  const have = entry[k] !== undefined && entry[k] !== null && entry[k] !== "";
-  const tr = document.createElement("tr");
-  tr.innerHTML = "<td class='k'>" + k + "</td>"
-    + "<td class='src'>" + (KEY_SOURCE[k] || "") + "</td>"
-    + "<td class='" + (have ? "yes" : "no") + "'>" + (have ? "set" : "empty") + "</td>";
+var PS4 = {
+  "14.00": {
+    measured: false,
+    fw_status:
+      "state=NO-TABLE no webkit module measured, no kernel_1400.elf, no 1400 kpatch blob " +
+      "payload=none(kpatch+payload for 14.00 not built)"
+  }
+};
+
+function isEmpty(v) {
+  return v === undefined || v === null || v === "";
+}
+
+function checkEntry(entry, requiredKeys) {
+  if (!entry) {
+    return { ok: false, state: "unmeasured", missing: requiredKeys.slice(0), bad: [] };
+  }
+  var missing = [], bad = [], i, k, v;
+  for (i = 0; i < requiredKeys.length; i++) {
+    k = requiredKeys[i];
+    v = entry[k];
+    if (isEmpty(v)) { missing.push(k); continue; }
+    if (typeof v === "number") {
+      if (!isFinite(v) || v < 0 || v >= RVA_LIMIT) {
+        bad.push(k + ": out of range (" + v + ")");
+      } else if (PLACEHOLDER.test("0x" + v.toString(16))) {
+        bad.push(k + ": placeholder 0 -- never measured");
+      }
+    } else if (typeof v === "string") {
+      if (!v.replace(/\s/g, "")) bad.push(k + ": empty string");
+    } else {
+      bad.push(k + ": unexpected type " + typeof v);
+    }
+  }
+  if (bad.length) return { ok: false, state: "invalid", missing: missing, bad: bad };
+  if (missing.length) {
+    return {
+      ok: false,
+      state: entry.measured === false ? "unmeasured" : "incomplete",
+      missing: missing,
+      bad: []
+    };
+  }
+  // Every key filled is not the same as every key measured. A table that was
+  // hand-edited from someone else's numbers still has to say measured:true, and
+  // anything short of that is refused here rather than at the first kernel write.
+  if (entry.measured !== true) {
+    return {
+      ok: false,
+      state: "unmeasured",
+      missing: [],
+      bad: ["complete table but measured!=true -- refusing to launch on an unmeasured table"]
+    };
+  }
+  return { ok: true, state: "ready", missing: [], bad: [] };
+}
+
+// PS4 UA carries the minor version as two hex digits: 13.52 -> 0x52, 14.00 -> 0x00.
+function detectFirmware(userAgent) {
+  var m = /PlayStation\s+4[\/ ](\d+)\.(\d+)/.exec(userAgent || "");
+  if (!m) return { key: null, fwnum: null };
+  var minor = parseInt(m[2], 16).toString(16);
+  if (minor.length < 2) minor = "0" + minor;
+  var major = parseInt(m[1], 10);
+  return { key: major + "." + minor, fwnum: String(major) + minor };
+}
+/* GATE-INLINE-END */
+
+var OPTIONAL_KEYS = [
+  "k_stubs",
+  "wk___imp_pthread_create",
+  "k_pthread_create",
+  "kpatch",
+  "payload",
+  "alias_of",
+  "k_idt_rsvd"
+];
+
+var KEY_SOURCE = {
+  fw_status: "free text; the only key allowed to be a sentence",
+  wk_expm1_builtin: "webkit module RVA (base-leak anchor)",
+  wk_JSFunction_m_function: "struct offset",
+  wk_POP_RDI_RET: "webkit module RVA (ROP gadget)",
+  wk_POP_RSI_RET: "webkit module RVA (ROP gadget)",
+  wk_POP_RDX_RET: "webkit module RVA (ROP gadget)",
+  wk_POP_RCX_RET: "webkit module RVA (ROP gadget)",
+  wk_POP_RAX_RET: "webkit module RVA (ROP gadget)",
+  wk_POP_R8_RET: "webkit module RVA (ROP gadget)",
+  wk_POP_R9_RET: "webkit module RVA (ROP gadget)",
+  wk_LEAVE_RET: "webkit module RVA (ROP gadget)",
+  wk_MOV_QWORD_PTR_RDI_RAX_RET: "webkit module RVA (ROP gadget)",
+  wk_MOV_RDI_RSI_30_CALL: "webkit module RVA (ROP gadget)",
+  wk_POP_RAX_MOV_RAX_JMP_18: "webkit module RVA (ROP gadget)",
+  wk_PUSH_RBP_MOV_RBP_RSP_10: "webkit module RVA (ROP gadget)",
+  wk_MOV_RDI_RAX_8_CALL_20: "webkit module RVA (ROP gadget)",
+  wk_MOV_RDX_RAX_18_CALL_10: "webkit module RVA (ROP gadget)",
+  wk_PUSH_RDX_POP_RSP_RET: "webkit module RVA (ROP gadget / stack pivot)",
+  pivot_view_sp: "stack pivot target RVA",
+  wk_ArrayBuffer_m_impl: "struct offset",
+  wk_ArrayBuffer_m_contents_m_data: "struct offset",
+  wk___imp___error: "webkit import slot RVA",
+  k__error: "kernel RVA (symbol behind __error)",
+  k_scan_stage1: "kernel RVA",
+  k_scan_stage2: "kernel RVA",
+  k_evf_cv: "kernel RVA",
+  k_sysent_661: "kernel RVA (sysent entry used for the kexec swap)",
+  k_jmp_rsi: "kernel RVA",
+  k_idt_rsvd: "kernel RVA (idt_rsvd anchor; .text shifts with it)",
+  k_stubs: "seed list for stub discovery",
+  kpatch: "blob filename in patches/",
+  payload: "blob filename in the package root",
+  alias_of: "firmware key this one inherits from"
+};
+
+var fw = detectFirmware(navigator.userAgent || "");
+var entry = (fw.key && PS4[fw.key]) || PS4["14.00"] || {};
+var verdict = checkEntry(entry, REQUIRED_KEYS);
+
+document.getElementById("head").innerHTML =
+  "detected: <b>" + (fw.key || "unknown") + "</b> &middot; gate: <b>" + verdict.state + "</b>"
+  + " &middot; set " + (REQUIRED_KEYS.length - verdict.missing.length)
+  + " of " + REQUIRED_KEYS.length
+  + (verdict.bad.length ? "<br>" + verdict.bad.join("<br>") : "");
+
+var body = document.getElementById("tbl").getElementsByTagName("tbody")[0];
+var keys = REQUIRED_KEYS.concat(OPTIONAL_KEYS);
+var i, k, have, tr, td;
+
+for (i = 0; i < keys.length; i++) {
+  k = keys[i];
+  have = entry[k] !== undefined && entry[k] !== null && entry[k] !== "";
+  tr = document.createElement("tr");
+  td = document.createElement("td"); td.className = "k"; td.innerHTML = k;
+  tr.appendChild(td);
+  td = document.createElement("td"); td.className = "src";
+  td.innerHTML = KEY_SOURCE[k] || ""; tr.appendChild(td);
+  td = document.createElement("td"); td.className = have ? "yes" : "no";
+  td.innerHTML = have ? "set" : "empty"; tr.appendChild(td);
   body.appendChild(tr);
 }
 
-const skeleton = { measured: true, fw_status: "state=MEASURED-ON-HW ..." };
-for (const k of keys) skeleton[k] = entry[k] !== undefined ? entry[k] : null;
+var skeleton = { measured: false, fw_status: "state=MEASURED-ON-HW ..." };
+for (i = 0; i < keys.length; i++) {
+  k = keys[i];
+  skeleton[k] = entry[k] !== undefined ? entry[k] : null;
+}
 document.getElementById("out").value =
   "// detected: " + (fw.key || "unknown") + "  gate: " + verdict.state + "\n"
   + JSON.stringify(skeleton, null, 2);

@@ -6,6 +6,10 @@ The front end that raw13g's site has and 14.00 does not: firmware detect,
 kernel-table gate, measurement checklist. It is deliberately **not** a
 jailbreak. `jb.html` is a stub, because no 14.00 WebKit chain exists to ship.
 
+> `FINDINGS-14.00.md` is the readable version of all of this: what now runs on
+> the console, why the 14.00 table cannot be filled from the files in
+> `_research/`, and what the disc in this workspace actually does at boot.
+
 ## What `hen.iso` actually is
 
 | item | value |
@@ -30,6 +34,12 @@ Runtime strings: `uid=0, patch the kernel, then load and launch hen.bin`,
    and `Boot.class` posts to it with an `X-Ticket` header plus the key
    `942a76d6946a34ce476bdabb09989f4c`. A HEN that reports to a remote host is
    not something to run on a console you care about, whatever else it does.
+   `Boot.class` goes further than reporting: its constant pool carries
+   `openConnection` / `getInputStream` / `readLong` / `Class.forName` /
+   `newInstance` / `invoke`, i.e. the reply is parsed into objects and
+   instantiated. `tools/neutralize_beacon.py` rewrites the two host strings in
+   place (byte-length preserving, payload untouched) and writes
+   `hen-neutered.jar`.
 2. The jar is BD-signed (`SIG-BD00.RSA`). Adding any file to it invalidates
    that signature. Repacking is fine for testing on a console that ignores BD-J
    JAR signing; it is not a drop-in patch for a retail disc.
@@ -60,18 +70,25 @@ console on first run, which is worse than shipping nothing.
 ## What is done and verified
 
 ```bash
-node tools/test.mjs      # 11 checks, all pass
+node tools/test.mjs      # 26 checks, all pass
 ```
 
-- `index.html` — UA detect (`PlayStation 4/(\d+)\.(\d+)`, minor read as hex),
-  table lookup, gate; refuses and routes to the checklist instead of launching.
+- `index.html` — strict ES5, self-contained (no module script, no imports, no
+  arrow functions, no `URLSearchParams`), so it parses and draws on the actual
+  PS4 537.x browser instead of failing silently. UA detect
+  (`PlayStation 4[ /](\d+)\.(\d+)`, minor read as hex), table lookup, gate,
+  refuse-and-route-to-checklist, and a one-line `RAW14|...` status string sized
+  for a screenshot.
 - `fwtable.js` — same `REQUIRED_KEYS`/`OPTIONAL_KEYS` contract as
   `ps4_offsets.js`, so a measured table drops in without touching the host.
   `PS4["14.00"]` is present, `measured: false`, every offset key absent.
-- `gate.js` — rejects missing, zeroed, out-of-range and half-filled entries.
+- `gate.js` — rejects missing, zeroed, out-of-range, half-filled, and
+  complete-but-unmeasured entries.
 - `measure.html` — per-key checklist with the source of each measurement and a
-  JSON skeleton to fill in.
-- `tools/test.mjs`, `tools/rebuild_jar.py`.
+  JSON skeleton to fill in; ES5, same gate block as `index.html`.
+- `tools/test.mjs` — gate rules, inline-vs-module parity on both pages, and an
+  ES5 lint that fails on any construct the console engine cannot parse.
+- `tools/rebuild_jar.py`, `tools/neutralize_beacon.py`.
 
 ## Finishing it
 
@@ -83,10 +100,16 @@ node tools/test.mjs      # 11 checks, all pass
    inside at `bonk/webkit/`; rebuild the disc image with `oscdimg` (UDF, volume
    label `BONKHEN`) or any UDF 2.60 writer.
 
-Local preview needs HTTP, not `file://`, because the host uses ES modules:
+The host is now ES5 and self-contained, so `index.html` and `measure.html` open
+straight off disk. Serve them anyway when you test from the console — that is
+how the PS4 reaches them:
 
-```bash
-python -m http.server 8000    # then open http://localhost:8000/
+```
+python -m http.server 8000    # then open http://<your-ip>:8000/ on the PS4
 ```
 
 Append `?force=1` to see the forced path — it lands on the stub, not a chain.
+
+`probe/` is still ES module based (`boot.js` uses dynamic `import()`), so it
+will not run on the console as shipped; the door map needs the same ES5
+conversion the two pages just got. See `FINDINGS-14.00.md`.

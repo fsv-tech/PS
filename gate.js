@@ -50,6 +50,17 @@ export function checkEntry(entry, requiredKeys) {
       bad,
     };
   }
+  // Every key filled is not the same as every key measured. A table pasted in
+  // from someone else's numbers still has to say measured:true; anything short
+  // of that is refused here rather than at the first kernel write.
+  if (entry.measured !== true) {
+    return {
+      ok: false,
+      state: "unmeasured",
+      missing,
+      bad: ["complete table but measured!=true -- refusing to launch on an unmeasured table"],
+    };
+  }
   return { ok: true, state: "ready", missing, bad };
 }
 

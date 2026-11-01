@@ -6,20 +6,29 @@
 <title>RAW 14</title>
 <style>
   html, body { margin:0; padding:0; background:#0b0d10; color:#c8ced8;
-               font:15px/1.45 "Segoe UI", system-ui, sans-serif; }
+               font:15px/1.45 "Segoe UI", system-ui, sans-serif;
+               -webkit-text-size-adjust:100%; }
   #brand { text-align:center; padding:10px; background:#0e1116;
            border-bottom:1px solid #1e2732; letter-spacing:.18em;
            font-weight:700; color:#e6ebf2; font-size:14px; }
-  #wrap { padding:16px 18px; }
+  #wrap { padding:16px 18px 40px; }
   #state { font-size:22px; font-weight:700; margin:0 0 6px; }
   #det { font-size:13px; color:#8b95a3; margin:0 0 4px; }
   #det b { color:#c8ced8; font-weight:600; }
   #why { font-size:12px; color:#5c6672; margin:10px 0 0; min-height:14px; }
-  #tap { font-size:14px; color:#d8c07f; font-weight:600; margin:10px 0 0;
-         min-height:14px; }
+  #tap { margin:14px 0 0; }
+  #tap a { display:inline-block; padding:10px 16px; font-size:14px; font-weight:600;
+           color:#0b0d10; background:#d8c07f; text-decoration:none;
+           border-radius:2px; outline:none; }
+  #tap a:focus { background:#e6ebf2; }
   .ok { color:#7fd0a0; } .bad { color:#d08a7f; } .warn { color:#d8c07f; }
   ul#miss { font:12px/1.6 Consolas, monospace; color:#8b95a3; margin:8px 0 0;
             padding-left:18px; max-height:34vh; overflow:auto; }
+  h4 { font-size:11px; letter-spacing:.16em; color:#5c6672; font-weight:600;
+       margin:22px 0 6px; }
+  #sig { font:12px/1.5 Consolas, monospace; color:#8b95a3; background:#0e1116;
+         border:1px solid #1e2732; padding:8px 10px; word-break:break-all; }
+  #ua { font:11px/1.5 Consolas, monospace; color:#5c6672; word-break:break-all; }
 </style>
 </head>
 <body>
@@ -30,63 +39,193 @@
   <ul id="miss"></ul>
   <div id="why"></div>
   <div id="tap"></div>
+
+  <h4>SCREENSHOT LINE</h4>
+  <div id="sig">-</div>
+  <h4>USER AGENT</h4>
+  <div id="ua">-</div>
 </div>
 
-<script type="module">
-import { PS4, REQUIRED_KEYS, offsetsFor } from "./fwtable.js";
-import { checkEntry, detectFirmware } from "./gate.js";
+<script>
+/* GATE-INLINE-BEGIN
+   The console build. Strict ES5 on purpose: the PS4 system browser is a
+   537.x WebKit -- no module scripts, no arrow functions, no block-scoped
+   bindings, no template literals, no URLSearchParams.
+   fwtable.js + gate.js are the dev build; tools/test.mjs asserts the two
+   stay in lockstep. Keep them identical.
+*/
+var RVA_LIMIT = 0x80000000;
+var PLACEHOLDER = /^(0x0+|0+)$/;
 
-const stateEl = document.getElementById("state");
-const detEl   = document.getElementById("det");
-const missEl  = document.getElementById("miss");
-const whyEl   = document.getElementById("why");
-const tapEl   = document.getElementById("tap");
+var REQUIRED_KEYS = [
+  "fw_status",
+  "wk_expm1_builtin",
+  "wk_JSFunction_m_function",
+  "wk_POP_RDI_RET",
+  "wk_POP_RSI_RET",
+  "wk_POP_RDX_RET",
+  "wk_POP_RCX_RET",
+  "wk_POP_RAX_RET",
+  "wk_POP_R8_RET",
+  "wk_POP_R9_RET",
+  "wk_LEAVE_RET",
+  "wk_MOV_QWORD_PTR_RDI_RAX_RET",
+  "wk_MOV_RDI_RSI_30_CALL",
+  "wk_POP_RAX_MOV_RAX_JMP_18",
+  "wk_PUSH_RBP_MOV_RBP_RSP_10",
+  "wk_MOV_RDI_RAX_8_CALL_20",
+  "wk_MOV_RDX_RAX_18_CALL_10",
+  "wk_PUSH_RDX_POP_RSP_RET",
+  "pivot_view_sp",
+  "wk_ArrayBuffer_m_impl",
+  "wk_ArrayBuffer_m_contents_m_data",
+  "wk___imp___error",
+  "k__error",
+  "k_scan_stage1",
+  "k_scan_stage2",
+  "k_evf_cv",
+  "k_sysent_661",
+  "k_jmp_rsi"
+];
 
-function setState(t, c) { stateEl.textContent = t; stateEl.className = c || ""; }
+var PS4 = {
+  "14.00": {
+    measured: false,
+    fw_status:
+      "state=NO-TABLE no webkit module measured, no kernel_1400.elf, no 1400 kpatch blob " +
+      "payload=none(kpatch+payload for 14.00 not built)"
+  }
+};
 
-const params = new URLSearchParams(location.search);
-const fw = detectFirmware(navigator.userAgent);
-const forced = params.get("force") === "1";
+function isEmpty(v) {
+  return v === undefined || v === null || v === "";
+}
 
-const entry = fw.key ? offsetsFor(fw.key) : null;
-const verdict = checkEntry(entry, REQUIRED_KEYS);
-const ready = forced || verdict.ok;
+function checkEntry(entry, requiredKeys) {
+  if (!entry) {
+    return { ok: false, state: "unmeasured", missing: requiredKeys.slice(0), bad: [] };
+  }
+  var missing = [], bad = [], i, k, v;
+  for (i = 0; i < requiredKeys.length; i++) {
+    k = requiredKeys[i];
+    v = entry[k];
+    if (isEmpty(v)) { missing.push(k); continue; }
+    if (typeof v === "number") {
+      if (!isFinite(v) || v < 0 || v >= RVA_LIMIT) {
+        bad.push(k + ": out of range (" + v + ")");
+      } else if (PLACEHOLDER.test("0x" + v.toString(16))) {
+        bad.push(k + ": placeholder 0 -- never measured");
+      }
+    } else if (typeof v === "string") {
+      if (!v.replace(/\s/g, "")) bad.push(k + ": empty string");
+    } else {
+      bad.push(k + ": unexpected type " + typeof v);
+    }
+  }
+  if (bad.length) return { ok: false, state: "invalid", missing: missing, bad: bad };
+  if (missing.length) {
+    return {
+      ok: false,
+      state: entry.measured === false ? "unmeasured" : "incomplete",
+      missing: missing,
+      bad: []
+    };
+  }
+  // Every key filled is not the same as every key measured. A table that was
+  // hand-edited from someone else's numbers still has to say measured:true, and
+  // anything short of that is refused here rather than at the first kernel write.
+  if (entry.measured !== true) {
+    return {
+      ok: false,
+      state: "unmeasured",
+      missing: [],
+      bad: ["complete table but measured!=true -- refusing to launch on an unmeasured table"]
+    };
+  }
+  return { ok: true, state: "ready", missing: [], bad: [] };
+}
+
+// PS4 UA carries the minor version as two hex digits: 13.52 -> 0x52, 14.00 -> 0x00.
+function detectFirmware(userAgent) {
+  var m = /PlayStation\s+4[\/ ](\d+)\.(\d+)/.exec(userAgent || "");
+  if (!m) return { key: null, fwnum: null };
+  var minor = parseInt(m[2], 16).toString(16);
+  if (minor.length < 2) minor = "0" + minor;
+  var major = parseInt(m[1], 10);
+  return { key: major + "." + minor, fwnum: String(major) + minor };
+}
+/* GATE-INLINE-END */
+
+var stateEl = document.getElementById("state");
+var detEl   = document.getElementById("det");
+var missEl  = document.getElementById("miss");
+var whyEl   = document.getElementById("why");
+var tapEl   = document.getElementById("tap");
+var sigEl   = document.getElementById("sig");
+var uaEl    = document.getElementById("ua");
+
+function setState(t, c) { stateEl.innerHTML = t; stateEl.className = c || ""; }
+
+// No URLSearchParams on this engine: parse the query string by hand.
+function param(name) {
+  var q = location.search || "";
+  if (q.charAt(0) === "?") q = q.substring(1);
+  var parts = q.split("&"), i, p, eq;
+  for (i = 0; i < parts.length; i++) {
+    p = parts[i];
+    eq = p.indexOf("=");
+    if (eq < 0) { if (p === name) return ""; continue; }
+    if (p.substring(0, eq) === name) return decodeURIComponent(p.substring(eq + 1));
+  }
+  return null;
+}
+
+var ua = navigator.userAgent || "";
+var fw = detectFirmware(ua);
+var forced = param("force") === "1";
+var entry = fw.key ? PS4[fw.key] : null;
+var verdict = checkEntry(entry, REQUIRED_KEYS);
+var ready = forced || verdict.ok;
+var webkit = (/AppleWebKit\/([0-9.]+)/.exec(ua) || [null, "?"])[1];
+
+uaEl.innerHTML = ua ? ua.replace(/&/g, "&amp;").replace(/</g, "&lt;") : "[empty user agent]";
+
+sigEl.innerHTML = "RAW14|fw=" + (fw.key || "none")
+  + "|webkit=" + webkit
+  + "|gate=" + verdict.state
+  + "|missing=" + verdict.missing.length
+  + "|ready=" + (ready ? "1" : "0");
 
 detEl.innerHTML = "firmware <b>" + (fw.key || "unknown") + "</b>"
-  + " &middot; <b>" + (verdict.ok ? "table ready" : "no 14.00 table") + "</b>";
+  + " &middot; <b>" + (verdict.ok ? "table ready" : "no measured " + (fw.key || "firmware") + " table") + "</b>"
+  + " &middot; webkit <b>" + webkit + "</b>";
 
 if (verdict.missing.length) {
-  missEl.innerHTML = verdict.missing
-    .slice(0, 40)
-    .map(function (k) { return "<li>" + k + "</li>"; })
-    .join("");
-}
-if (verdict.bad.length) {
-  whyEl.textContent = verdict.bad.slice(0, 3).join(" | ");
-}
-
-function waitForTap(msg, action) {
-  tapEl.textContent = msg;   // headline and explanation stay put
-  function fire() {
-    window.removeEventListener("click", fire);
-    window.removeEventListener("keydown", fire);
-    action();
-  }
-  window.addEventListener("click", fire);
-  window.addEventListener("keydown", fire);
+  var html = "", n = Math.min(verdict.missing.length, 40), j;
+  for (j = 0; j < n; j++) html += "<li>" + verdict.missing[j] + "</li>";
+  missEl.innerHTML = html;
 }
 
 if (ready) {
   setState("loading jailbreak...", "warn");
-  location.replace("jb.html" + location.search);
+  location.replace("jb.html" + (location.search || ""));
 } else {
   setState("NO MEASURED TABLE", "bad");
-  whyEl.innerHTML =
-    "This build ships no measured WebKit / kernel RVAs for " + (fw.key || "this firmware") +
-    ". Nothing is guessed on purpose: a wrong RVA is not a clean crash. "
-    + "Press X to open the measurement checklist.";
-  waitForTap("PRESS X -- open checklist (no chain will run)",
-             function () { location.href = "measure.html" + location.search; });
+  whyEl.innerHTML = forced
+    ? "Gate bypassed with <b>?force=1</b>. <code>jb.html</code> is a stub: the chain files "
+      + "(<code>jb.js</code>, <code>core.js</code>, <code>mem.js</code>, <code>int64.js</code>, "
+      + "<code>patches/</code>) are not in this package, so this lands on the stub, not a chain."
+    : "This build ships no measured WebKit / kernel RVAs for " + (fw.key || "this firmware")
+      + ". Nothing is guessed on purpose: a wrong RVA is not a clean crash. "
+      + (verdict.bad.length ? "<br><b>" + verdict.bad.slice(0, 3).join(" | ") + "</b>" : "");
+
+  // A real link, not a click listener: on the PS4 the gamepad cursor and Enter
+  // both reach an <a>, and a bare window click handler needs a page click that
+  // the console UI does not always deliver.
+  tapEl.innerHTML = "<a id='go' href='measure.html" + (location.search || "") + "'>"
+    + "OPEN MEASUREMENT CHECKLIST</a>";
+  var go = document.getElementById("go");
+  if (go && go.focus) { try { go.focus(); } catch (e) {} }
 }
 </script>
 </body>
